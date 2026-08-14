@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, Wrench, CheckCircle2, ChevronRight, UserCheck } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, ChevronRight, ClipboardList, SlidersHorizontal, UserCheck, Wrench } from 'lucide-react';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
+
+const filters = ['Hepsi', 'Açık', 'İşlemde', 'Çözüldü'];
 
 export default function IssuesList() {
   const { currentUser, userRole } = useAuth();
@@ -12,215 +14,52 @@ export default function IssuesList() {
   const [sorumlular, setSorumlular] = useState([]);
   const [secilenSorumluEmail, setSecilenSorumluEmail] = useState('');
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('Hepsi'); // Hepsi, Açık, İşlemde, Çözüldü
-
+  const [filter, setFilter] = useState('Hepsi');
   const isAdmin = userRole === 'admin';
 
-  // Yönetici ise sorumlular listesini çek
   useEffect(() => {
-    if (isAdmin) {
-      const sorumlulariGetir = async () => {
-        try {
-          const snapshot = await getDocs(collection(db, "sorumlular"));
-          const liste = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setSorumlular(liste);
-        } catch (err) {
-          console.error("Sorumlular getirilirken hata:", err);
-        }
-      };
-      sorumlulariGetir();
-    }
+    if (!isAdmin) return;
+    getDocs(collection(db, 'sorumlular')).then((snapshot) => setSorumlular(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })))).catch(console.error);
   }, [isAdmin]);
 
   useEffect(() => {
-    fetchIssues();
-  }, [currentUser, filter, secilenSorumluEmail]);
-
-  const fetchIssues = async () => {
-    if (!currentUser) return;
-    
-    setLoading(true);
-    try {
-      let issueList = [];
-
-      if (isAdmin) {
-        let q;
-        if (filter === 'Hepsi') {
-          q = query(collection(db, "arizalar"));
+    const fetchIssues = async () => {
+      if (!currentUser) return;
+      setLoading(true);
+      try {
+        let list;
+        if (isAdmin) {
+          const issueQuery = filter === 'Hepsi' ? query(collection(db, 'arizalar')) : query(collection(db, 'arizalar'), where('durum', '==', filter));
+          list = (await getDocs(issueQuery)).docs.map((item) => ({ id: item.id, ...item.data() }));
+          if (secilenSorumluEmail) {
+            const machines = (await getDocs(query(collection(db, 'makineler'), where('ekleyen_email', '==', secilenSorumluEmail)))).docs.map((item) => ({ id: item.id, ...item.data() }));
+            const codes = machines.map((machine) => machine.kod).filter(Boolean);
+            const ids = machines.map((machine) => machine.id);
+            list = list.filter((issue) => issue.ekleyen_email === secilenSorumluEmail || issue.sorumlu_email === secilenSorumluEmail || codes.includes(issue.makine_kod) || ids.includes(issue.makine_id));
+          }
         } else {
-          q = query(collection(db, "arizalar"), where("durum", "==", filter));
+          const machines = (await getDocs(query(collection(db, 'makineler'), where('ekleyen_email', '==', currentUser.email)))).docs.map((item) => ({ id: item.id, ...item.data() }));
+          const codes = machines.map((machine) => machine.kod).filter(Boolean);
+          const ids = machines.map((machine) => machine.id);
+          list = (await getDocs(collection(db, 'arizalar'))).docs.map((item) => ({ id: item.id, ...item.data() })).filter((issue) => issue.ekleyen_email === currentUser.email || issue.sorumlu_email === currentUser.email || issue.email === currentUser.email || codes.includes(issue.makine_kod) || ids.includes(issue.makine_id));
+          if (filter !== 'Hepsi') list = list.filter((issue) => issue.durum === filter);
         }
-        const querySnapshot = await getDocs(q);
-        issueList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        // Yönetici bir sorumlu seçtiyse
-        if (secilenSorumluEmail) {
-          const makineQuery = query(collection(db, "makineler"), where("ekleyen_email", "==", secilenSorumluEmail));
-          const makineSnapshot = await getDocs(makineQuery);
-          const sorumlununMakineKodlari = makineSnapshot.docs.map(doc => doc.data().kod).filter(Boolean);
-          const sorumlununMakineIdleri = makineSnapshot.docs.map(doc => doc.id).filter(Boolean);
+        list.sort((a, b) => (b.olusturulma_tarihi?.toMillis?.() || 0) - (a.olusturulma_tarihi?.toMillis?.() || 0));
+        setIssues(list);
+      } catch (error) { console.error('Arızalar getirilirken hata:', error); } finally { setLoading(false); }
+    };
+    fetchIssues();
+  }, [currentUser, filter, secilenSorumluEmail, isAdmin]);
 
-          issueList = issueList.filter(issue => 
-            issue.ekleyen_email === secilenSorumluEmail ||
-            issue.sorumlu_email === secilenSorumluEmail ||
-            sorumlununMakineKodlari.includes(issue.makine_kod) || 
-            sorumlununMakineIdleri.includes(issue.makine_id)
-          );
-        }
-      } else {
-        // SORUMLU KULLANICI: Sadece kendi mailine ait makineleri ve arızaları getir
-        const makineQuery = query(collection(db, "makineler"), where("ekleyen_email", "==", currentUser.email));
-        const makineSnapshot = await getDocs(makineQuery);
-        const sorumlununMakineKodlari = makineSnapshot.docs.map(doc => doc.data().kod).filter(Boolean);
-        const sorumlununMakineIdleri = makineSnapshot.docs.map(doc => doc.id).filter(Boolean);
-
-        const querySnapshot = await getDocs(collection(db, "arizalar"));
-        issueList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        issueList = issueList.filter(issue => {
-          const mailEslesmesi = 
-            issue.ekleyen_email === currentUser.email || 
-            issue.sorumlu_email === currentUser.email || 
-            issue.email === currentUser.email;
-
-          const makineEslesmesi = 
-            (issue.makine_kod && sorumlununMakineKodlari.includes(issue.makine_kod)) || 
-            (issue.makine_id && sorumlununMakineIdleri.includes(issue.makine_id));
-
-          return mailEslesmesi || makineEslesmesi;
-        });
-
-        if (filter !== 'Hepsi') {
-          issueList = issueList.filter(issue => issue.durum === filter);
-        }
-      }
-      
-      issueList.sort((a, b) => (b.olusturulma_tarihi?.toMillis() || 0) - (a.olusturulma_tarihi?.toMillis() || 0));
-      setIssues(issueList);
-    } catch (err) {
-      console.error("Arızalar getirilirken hata:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Açık': return 'var(--color-status-open)';
-      case 'İşlemde': return 'var(--color-status-progress)';
-      case 'Çözüldü': return 'var(--color-status-resolved)';
-      default: return 'var(--color-text-muted)';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'Açık': return <AlertCircle size={24} color={getStatusColor(status)} />;
-      case 'İşlemde': return <Wrench size={24} color={getStatusColor(status)} />;
-      case 'Çözüldü': return <CheckCircle2 size={24} color={getStatusColor(status)} />;
-      default: return null;
-    }
-  };
+  const status = (value) => ({ Açık: { color: 'var(--color-status-open)', icon: AlertCircle }, İşlemde: { color: 'var(--color-status-progress)', icon: Wrench }, Çözüldü: { color: 'var(--color-status-resolved)', icon: CheckCircle2 } }[value] || { color: 'var(--color-text-muted)', icon: AlertCircle });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center">
-          <button 
-            onClick={() => navigate('/dashboard')} 
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text)', marginRight: '1rem' }}
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h2 style={{ fontSize: '1.4rem', margin: 0 }}>Arıza Kayıtları</h2>
-        </div>
-      </div>
-
-      {isAdmin && (
-        <div className="card mb-3" style={{ padding: '0.8rem 1rem', backgroundColor: '#f8f9fa', border: '1px solid #e0e0e0' }}>
-          <div className="flex items-center" style={{ marginBottom: '0.4rem' }}>
-            <UserCheck size={18} color="var(--color-primary)" style={{ marginRight: '0.5rem' }} />
-            <label htmlFor="sorumluFilter" style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--color-text)' }}>
-              Sorumluya Ait Makinelerin Arızaları
-            </label>
-          </div>
-          <select
-            id="sorumluFilter"
-            value={secilenSorumluEmail}
-            onChange={(e) => setSecilenSorumluEmail(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #ccc', backgroundColor: '#fff', fontSize: '0.95rem', outline: 'none' }}
-          >
-            <option value="">Tüm Sorumlular (Genel Görünüm)</option>
-            {sorumlular.map(sorumlu => (
-              <option key={sorumlu.id} value={sorumlu.email}>
-                {sorumlu.ad_soyad} ({sorumlu.email})
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <div className="flex mb-3" style={{ backgroundColor: '#E0E0E0', padding: '4px', borderRadius: '8px', overflowX: 'auto' }}>
-        {['Hepsi', 'Açık', 'İşlemde', 'Çözüldü'].map(f => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            style={{
-              flex: 1,
-              padding: '0.5rem',
-              border: 'none',
-              borderRadius: '6px',
-              backgroundColor: filter === f ? 'var(--color-surface)' : 'transparent',
-              color: filter === f ? 'var(--color-text)' : 'var(--color-text-muted)',
-              fontWeight: filter === f ? 600 : 400,
-              boxShadow: filter === f ? 'var(--box-shadow-sm)' : 'none',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
-
-      <div>
-        {loading ? (
-          <div className="text-center mt-2">Arızalar yükleniyor...</div>
-        ) : issues.length === 0 ? (
-          <div className="card text-center text-muted mt-2">
-            Bu filtreye uygun arıza kaydı bulunamadı.
-          </div>
-        ) : (
-          issues.map(issue => (
-            <div 
-              key={issue.id} 
-              className="card flex justify-between items-center" 
-              style={{ padding: '1rem', cursor: 'pointer', borderLeft: `4px solid ${getStatusColor(issue.durum)}` }}
-              onClick={() => navigate(`/issues/${issue.id}`)}
-            >
-              <div className="flex gap-3 items-center">
-                <div style={{ backgroundColor: '#F5F5F5', padding: '0.5rem', borderRadius: '50%' }}>
-                  {getStatusIcon(issue.durum)}
-                </div>
-                <div>
-                  <h4 style={{ fontSize: '1.1rem', marginBottom: '0.1rem' }}>{issue.makine_ad}</h4>
-                  <div className="flex gap-2 items-center" style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
-                    <span>{issue.makine_kod}</span>
-                    <span>•</span>
-                    <span>{issue.olusturulma_tarihi?.toDate().toLocaleDateString('tr-TR')}</span>
-                  </div>
-                  <p style={{ fontSize: '0.9rem', marginTop: '0.3rem', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {issue.aciklama}
-                  </p>
-                </div>
-              </div>
-              <ChevronRight size={24} color="var(--color-text-muted)" />
-            </div>
-          ))
-        )}
-      </div>
-
+    <div>
+      <button className="back-button" onClick={() => navigate('/dashboard')}><ArrowLeft size={17} />Operasyon merkezine dön</button>
+      <header className="page-header"><div><span className="eyebrow"><ClipboardList size={14} /> Arıza yönetimi</span><h1 className="page-title">Arıza kayıtları</h1><p className="page-subtitle">Kayıtları durumuna ve ekip sorumlusuna göre filtreleyin.</p></div></header>
+      {isAdmin && <section className="filter-panel" style={{ marginBottom: '0.8rem' }}><label className="input-label" htmlFor="sorumlu-filter"><UserCheck size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Sorumlu görünümü</label><select id="sorumlu-filter" className="input-field" value={secilenSorumluEmail} onChange={(event) => setSecilenSorumluEmail(event.target.value)}><option value="">Tüm sorumlular ve makineler</option>{sorumlular.map((sorumlu) => <option key={sorumlu.id} value={sorumlu.email}>{sorumlu.ad_soyad} ({sorumlu.email})</option>)}</select></section>}
+      <section className="filter-tabs" aria-label="Arıza durumu filtresi">{filters.map((item) => <button key={item} className={`filter-tab ${filter === item ? 'active' : ''}`} onClick={() => setFilter(item)}>{item}</button>)}</section>
+      <section className="issue-list">{loading ? <div className="empty-state">Kayıtlar yükleniyor…</div> : issues.length === 0 ? <div className="empty-state"><SlidersHorizontal size={22} style={{ marginBottom: 8 }} /><br />Bu filtreye uygun arıza kaydı bulunamadı.</div> : issues.map((issue) => { const { color, icon: Icon } = status(issue.durum); const date = issue.olusturulma_tarihi?.toDate?.().toLocaleDateString('tr-TR') || 'Tarih bekleniyor'; return <button key={issue.id} className="issue-row" style={{ '--status-color': color }} onClick={() => navigate(`/issues/${issue.id}`)}><span className="issue-icon"><Icon size={20} /></span><span className="issue-main"><h3>{issue.makine_ad || 'Adı tanımlanmamış makine'}</h3><span className="issue-meta"><span>{issue.makine_kod || 'Kodsuz'}</span><span>•</span><span>{date}</span><span className="status-pill" style={{ color, padding: '0.16rem 0.38rem' }}>{issue.durum || 'Durum yok'}</span></span><span className="issue-description">{issue.aciklama || 'Açıklama girilmemiş.'}</span></span><ChevronRight size={18} color="var(--color-text-muted)" /></button>; })}</section>
     </div>
   );
 }

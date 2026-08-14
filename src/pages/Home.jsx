@@ -1,16 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Html5Qrcode } from 'html5-qrcode';
-import { Keyboard, ArrowRight, QrCode, Camera } from 'lucide-react';
+import { ArrowRight, Camera, Keyboard, QrCode, ScanLine, ShieldCheck } from 'lucide-react';
 
-// QR veya barkod iceriginden makine kodunu cikaran yardimci fonksiyon
 function extractMachineCode(rawText) {
-  // Eger bir URL ise (/ icerir), en sondaki parcayi al
-  // Ornegin: https://emirkaraarslan35.github.io/machine/MKN-8081 -> MKN-8081
-  if (rawText.includes('/')) {
-    const parts = rawText.split('/').filter(p => p.length > 0);
-    return parts[parts.length - 1];
-  }
+  if (rawText.includes('/')) return rawText.split('/').filter(Boolean).at(-1);
   return rawText.trim();
 }
 
@@ -20,113 +14,67 @@ export default function Home() {
   const [scannerActive, setScannerActive] = useState(false);
 
   useEffect(() => {
-    let html5QrCode = null;
-    let isNavigating = false;
-    
-    if (scannerActive) {
-      html5QrCode = new Html5Qrcode("qr-reader");
-      
-      const startScanner = async () => {
-        try {
-          await html5QrCode.start(
-            { facingMode: "environment" },
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            async (decodedText) => {
-              if (isNavigating) return;
-              isNavigating = true;
-              try {
-                await html5QrCode.stop();
-              } catch (err) {
-                console.error("Failed to stop scanner", err);
-              }
-              const machineCode = extractMachineCode(decodedText);
-              navigate(`/machine/${machineCode}`);
-            },
-            (err) => {}
-          );
-        } catch (err) {
-          console.error("Kamera baslatilmadi:", err);
-          alert("Kameraya erisilemedi!");
-          setScannerActive(false);
-        }
-      };
-      
-      startScanner();
-    }
-
-    return () => {
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().catch(error => console.error("Failed to clear scanner", error));
-      }
-    };
+    let scanner;
+    let navigating = false;
+    if (!scannerActive) return undefined;
+    scanner = new Html5Qrcode('qr-reader');
+    scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 230, height: 230 } },
+      async (decodedText) => {
+        if (navigating) return;
+        navigating = true;
+        try { await scanner.stop(); } catch { /* kamera akışı sayfa değişirken zaten kapanabilir */ }
+        navigate(`/machine/${extractMachineCode(decodedText)}`);
+      },
+      () => {},
+    ).catch(() => {
+      alert('Kameraya erişilemedi. Lütfen kamera izni verin veya makine kodunu elle girin.');
+      setScannerActive(false);
+    });
+    return () => { if (scanner?.isScanning) scanner.stop().catch(() => {}); };
   }, [scannerActive, navigate]);
 
-  const handleManualSubmit = (e) => {
-    e.preventDefault();
-    if (code.trim()) {
-      navigate(`/machine/${code.toUpperCase()}`);
-    }
+  const handleManualSubmit = (event) => {
+    event.preventDefault();
+    if (code.trim()) navigate(`/machine/${code.trim().toUpperCase()}`);
   };
 
   return (
-    <div className="home-grid" style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '1.5rem' }}>
-      {/* QR Tarayici */}
-      <div className="card" style={{ 
-        flex: 1, 
-        backgroundColor: scannerActive ? '#000' : '#E8E8E8', 
-        borderRadius: 'var(--border-radius-lg)',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '280px',
-        marginBottom: 0,
-        position: 'relative'
-      }}>
-        {!scannerActive ? (
-          <div style={{ textAlign: 'center' }}>
-            <Camera size={48} color="#999" style={{ marginBottom: '1rem' }} />
-            <p style={{ color: '#888', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
-              QR kodu taramak icin kamerayi acin
-            </p>
-            <button 
-              className="btn btn-primary" 
-              onClick={() => setScannerActive(true)}
-            >
-              <QrCode size={20} />
-              Kamerayi Ac
-            </button>
-          </div>
-        ) : (
-          <div id="qr-reader" style={{ width: '100%', height: '100%' }}></div>
-        )}
-      </div>
-
-      {/* Manuel Kod Girisi */}
-      <div className="card" style={{ marginBottom: 0 }}>
-        <h3 style={{ color: 'var(--color-text)', fontSize: '1.1rem', marginBottom: '1rem' }}>
-          Veya Kodu El ile Girin
-        </h3>
-        
-        <form onSubmit={handleManualSubmit}>
-          <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: 'var(--border-radius)', padding: '0.6rem 1rem' }}>
-            <Keyboard size={22} color="var(--color-text-muted)" style={{ marginRight: '0.8rem', flexShrink: 0 }} />
-            <input
-              type="text"
-              placeholder="Orn: SESA-PRES-01"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              style={{ border: 'none', outline: 'none', flex: 1, fontSize: '1rem', backgroundColor: 'transparent' }}
-            />
-          </div>
-          
-          <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
-            <ArrowRight size={20} />
-            Ilerle
-          </button>
-        </form>
-      </div>
-    </div>
+    <>
+      <section className="field-hero">
+        <span className="eyebrow"><ShieldCheck size={14} /> Saha operasyonları</span>
+        <h1>Arızayı doğru makineye, doğru ekibe iletin.</h1>
+        <p>Makine üzerindeki QR kodu okutun veya kodu elle girin. Bildirim ilgili bölüm sorumlularının takip akışına iletilir.</p>
+        <div className="field-meta"><span><QrCode size={13} /> QR ile erişim</span><span><ScanLine size={13} /> Kayıt altına alınır</span></div>
+      </section>
+      <section className="home-grid" aria-label="Arıza bildirimi başlangıcı">
+        <article className="card scanner-card">
+          {!scannerActive ? (
+            <div className="scanner-content">
+              <div className="scanner-icon"><Camera size={31} /></div>
+              <h2>Kamera ile tarayın</h2>
+              <p>Makine etiketindeki QR kodu kameraya gösterin.</p>
+              <button className="btn btn-primary" onClick={() => setScannerActive(true)}><QrCode size={18} />Kamerayı aç</button>
+            </div>
+          ) : (
+            <div className="scanner-content" style={{ width: '100%', maxWidth: 360 }}>
+              <div id="qr-reader" style={{ width: '100%' }} />
+              <button className="scanner-cancel" onClick={() => setScannerActive(false)}>Taramayı kapat</button>
+            </div>
+          )}
+        </article>
+        <article className="card manual-card">
+          <span className="eyebrow"><Keyboard size={14} /> Alternatif erişim</span>
+          <h2>Makine kodunu girin</h2>
+          <p>QR kod okunamıyorsa makine etiketinde yer alan kodu kullanın.</p>
+          <form onSubmit={handleManualSubmit}>
+            <label className="input-label" htmlFor="machine-code">Makine kodu</label>
+            <div className="manual-input"><Keyboard size={19} color="var(--color-text-muted)" /><input id="machine-code" type="text" placeholder="Örn. MKN-1024" value={code} onChange={(event) => setCode(event.target.value)} autoCapitalize="characters" /></div>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}><ArrowRight size={18} />Arıza bildirimine geç</button>
+          </form>
+        </article>
+      </section>
+    </>
   );
 }

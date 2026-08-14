@@ -1,102 +1,40 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ShieldAlert, Mail, Wrench, ArrowRight, LogOut, Users } from 'lucide-react';
+import { ArrowRight, ClipboardList, Mail, ShieldCheck, Users, Wrench } from 'lucide-react';
+
+const actions = [
+  { id: 'issues', title: 'Arıza kayıtları', description: 'Açık, işlemde ve çözülen bildirimleri kontrol edin.', hint: 'Operasyon akışı', icon: ClipboardList, tone: 'red' },
+  { id: 'machines', title: 'Makine envanteri', description: 'Makine kayıtlarını, kodları ve QR etiketlerini yönetin.', hint: 'Saha varlıkları', icon: Wrench, tone: 'blue' },
+  { id: 'settings', title: 'Bildirim ayarları', description: 'Otomatik e-posta bildirim akışını yapılandırın.', hint: 'İletişim merkezi', icon: Mail, tone: 'primary' },
+];
 
 export default function Dashboard() {
-  const { currentUser, userRole, logout } = useAuth();
+  const { currentUser, userRole } = useAuth();
   const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const visibleActions = userRole === 'admin'
+    ? [...actions, { id: 'users', title: 'Personel yönetimi', description: 'Sorumlu kullanıcıları ve erişim rollerini yönetin.', hint: 'Yetki & organizasyon', icon: Users, tone: 'green' }]
+    : actions;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      
-      <div className="flex justify-between items-center mb-3">
+    <div>
+      <header className="page-header">
         <div>
-          <ShieldAlert size={48} color="var(--color-text-muted)" style={{ marginBottom: '0.5rem' }} />
-          <h2 style={{ fontSize: '1.4rem' }}>SESA Kontrol Paneline Hoş Geldiniz</h2>
-          <p className="color-text-muted" style={{ fontSize: '0.9rem' }}>
-            {currentUser?.email} {userRole ? `(${userRole === 'sorumlu' ? 'Bölüm Sorumlusu' : 'Admin'})` : ''}
-          </p>
+          <span className="eyebrow"><ShieldCheck size={14} /> Operasyon merkezi</span>
+          <h1 className="page-title">SESA arıza yönetimi</h1>
+          <p className="page-subtitle">Saha bildirimlerini, makine kayıtlarını ve ekip sorumluluklarını tek merkezden yönetin.</p>
         </div>
-        <button 
-          onClick={handleLogout} 
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-status-open)', padding: '0.5rem' }}
-          title="Çıkış Yap"
-        >
-          <LogOut size={24} />
-        </button>
-      </div>
-
-      <div 
-        className="card" 
-        style={{ backgroundColor: 'var(--color-primary-light)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-        onClick={() => navigate('/machines')}
-      >
-        <div className="flex items-center gap-4">
-          <Wrench size={28} color="var(--color-text)" />
-          <div>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.2rem' }}>SESA Makinelerini Yönet</h3>
-            <p className="color-text-muted" style={{ fontSize: '0.9rem' }}>Makine ekle veya sil</p>
-          </div>
-        </div>
-        <ArrowRight size={24} color="var(--color-text)" />
-      </div>
-
-      <div 
-        className="card" 
-        style={{ backgroundColor: '#E0E0E0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-        onClick={() => navigate('/settings')}
-      >
-        <div className="flex items-center gap-4">
-          <Mail size={28} color="var(--color-text)" />
-          <div>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.2rem' }}>Sistem Mail Ayarları</h3>
-            <p className="color-text-muted" style={{ fontSize: '0.9rem' }}>Otomatik mail robotu ayarları</p>
-          </div>
-        </div>
-        <ArrowRight size={24} color="var(--color-text)" />
-      </div>
-
-      <div 
-        className="card" 
-        style={{ backgroundColor: '#E0E0E0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}
-        onClick={() => navigate('/issues')}
-      >
-        <div className="flex items-center gap-4">
-          <ShieldAlert size={28} color="var(--color-text)" />
-          <div>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.2rem' }}>Arıza Kayıtları</h3>
-            <p className="color-text-muted" style={{ fontSize: '0.9rem' }}>Gelen arızaları yönetin</p>
-          </div>
-        </div>
-        <ArrowRight size={24} color="var(--color-text)" />
-      </div>
-
-      {userRole === 'admin' && (
-        <div 
-          className="card" 
-          style={{ backgroundColor: '#1a1a1a', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-          onClick={() => navigate('/users')}
-        >
-          <div className="flex items-center gap-4">
-            <Users size={28} color="#facc15" />
-            <div>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.2rem', color: '#facc15' }}>Personel Yönetimi</h3>
-              <p style={{ fontSize: '0.9rem', color: '#a1a1aa', margin: 0 }}>Sorumlu ekle, düzenle veya sil</p>
-            </div>
-          </div>
-          <ArrowRight size={24} color="#facc15" />
-        </div>
-      )}
-
+        <div className="identity-card"><span className="identity-icon"><ShieldCheck size={17} /></span><span><strong>{userRole === 'admin' ? 'Yönetici erişimi' : 'Bölüm sorumlusu'}</strong><br />{currentUser?.email}</span></div>
+      </header>
+      <section className="action-grid" aria-label="Operasyon modülleri">
+        {visibleActions.map(({ id, title, description, hint, icon: Icon, tone }) => (
+          <button key={id} className="action-card" onClick={() => navigate(`/${id}`)}>
+            <span className={`action-card__icon ${tone}`}><Icon size={21} /></span>
+            <span><h3>{title}</h3><p>{description}</p></span>
+            <span className="action-card__footer">{hint}<ArrowRight size={16} /></span>
+          </button>
+        ))}
+      </section>
+      <aside className="operational-note"><ShieldCheck size={18} color="var(--color-info)" /><span><strong>Operasyon notu:</strong> Her yeni saha bildirimi, makine ve bölüm bilgisiyle birlikte kayda alınır. Güncel durumları arıza kayıtları modülünden takip edin.</span></aside>
     </div>
   );
 }

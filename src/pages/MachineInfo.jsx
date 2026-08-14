@@ -1,21 +1,18 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, Upload, AlertCircle } from 'lucide-react';
-import { sendIssueEmail } from '../utils/emailService';
-import { db } from '../firebase/config';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, ImagePlus, Info, Send, Trash2, Wrench } from 'lucide-react';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { useAuth } from '../contexts/AuthContext'; // <-- Auth import edildi
+import { db } from '../firebase/config';
+import { sendIssueEmail } from '../utils/emailService';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function MachineInfo() {
   const { code } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth(); // <-- Kullanıcı bilgisi alındı
-  
+  const { currentUser } = useAuth();
   const [machine, setMachine] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
-  // Form states
   const [description, setDescription] = useState('');
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -25,235 +22,72 @@ export default function MachineInfo() {
     const fetchMachine = async () => {
       setLoading(true);
       try {
-        const q = query(collection(db, "makineler"), where("kod", "==", code));
-        const querySnapshot = await getDocs(q);
-        
-        if (querySnapshot.empty) {
-          setError('Bu koda ait makine bulunamadı.');
-        } else {
-          const machineData = querySnapshot.docs[0].data();
-          setMachine({ id: querySnapshot.docs[0].id, ...machineData });
-        }
+        const result = await getDocs(query(collection(db, 'makineler'), where('kod', '==', code)));
+        if (result.empty) setError('Bu koda ait aktif makine bulunamadı. Etiketi kontrol edip tekrar deneyin.');
+        else setMachine({ id: result.docs[0].id, ...result.docs[0].data() });
       } catch (err) {
-        console.error("Makine getirilirken hata:", err);
-        setError('Makine bilgileri alınırken bir hata oluştu.');
-      } finally {
-        setLoading(false);
-      }
+        console.error('Makine getirilirken hata:', err);
+        setError('Makine bilgileri alınırken bir bağlantı sorunu oluştu.');
+      } finally { setLoading(false); }
     };
-
     fetchMachine();
   }, [code]);
 
-  const handlePhotoChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          
-          const MAX_SIZE = 800;
-          if (width > height && width > MAX_SIZE) {
-            height *= MAX_SIZE / width;
-            width = MAX_SIZE;
-          } else if (height > MAX_SIZE) {
-            width *= MAX_SIZE / height;
-            height = MAX_SIZE;
-          }
-          
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
-          
-          setPhotoPreview(compressedDataUrl);
-          setPhoto(compressedDataUrl);
-        };
-        img.src = event.target.result;
+  const handlePhotoChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (readerEvent) => {
+      const image = new Image();
+      image.onload = () => {
+        const maxSize = 800;
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(image.width * scale);
+        canvas.height = Math.round(image.height * scale);
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.6);
+        setPhoto(compressed);
+        setPhotoPreview(compressed);
       };
-      reader.readAsDataURL(file);
-    }
+      image.src = readerEvent.target.result;
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!description.trim()) {
-      alert('Lütfen arıza açıklaması girin.');
-      return;
-    }
-
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!description.trim()) return;
     setSubmitting(true);
+    const issueData = {
+      makine_id: machine.id, makine_kod: machine.kod, makine_ad: machine.ad,
+      bolum_id: machine.bolum_id, bolum_ad: machine.bolum_ad || 'Tanımlanmamış bölüm',
+      ekleyen_email: currentUser?.email || 'Bilinmiyor', aciklama: description.trim(), foto_url: photo,
+      durum: 'Açık', olusturulma_tarihi: serverTimestamp(), cozulme_tarihi: null, cozen_sorumlu_id: null,
+      durum_gecmisi: [{ durum: 'Açık', tarih: new Date(), sorumlu_id: null }],
+    };
     try {
-      let photoUrl = null;
-
-      if (photo) {
-        photoUrl = photo;
-      }
-
-      // Arızayı Firestore'a kaydet (ekleyen_email eklendi)
-      const arizaData = {
-        makine_id: machine.id,
-        makine_kod: machine.kod,
-        makine_ad: machine.ad,
-        bolum_id: machine.bolum_id,
-        bolum_ad: machine.bolum_ad || 'Bilinmiyor',
-        ekleyen_email: currentUser?.email || 'Bilinmiyor', // <-- ARTIK KİMİN EKLEDİĞİ KAYDEDİLİYOR
-        aciklama: description,
-        foto_url: photoUrl,
-        durum: "Açık",
-        olusturulma_tarihi: serverTimestamp(),
-        cozulme_tarihi: null,
-        cozen_sorumlu_id: null,
-        durum_gecmisi: [
-          { durum: "Açık", tarih: new Date(), sorumlu_id: null }
-        ]
-      };
-      
-      await addDoc(collection(db, "arizalar"), arizaData);
-
-      // E-POSTA GÖNDERİMİ
+      await addDoc(collection(db, 'arizalar'), issueData);
       try {
-        const qSorumlular = query(collection(db, "sorumlular"), where("bolum_idler", "array-contains", machine.bolum_id));
-        const sorumlularSnapshot = await getDocs(qSorumlular);
-        
-        sorumlularSnapshot.forEach((doc) => {
-          const sorumlu = doc.data();
-          if (sorumlu.email) {
-            sendIssueEmail(arizaData, sorumlu.email);
-          }
-        });
-      } catch (mailErr) {
-        console.error("Mail atılacak sorumlular bulunurken hata:", mailErr);
-      }
-
+        const responsible = await getDocs(query(collection(db, 'sorumlular'), where('bolum_idler', 'array-contains', machine.bolum_id)));
+        responsible.forEach((item) => { if (item.data().email) sendIssueEmail(issueData, item.data().email); });
+      } catch (mailError) { console.error('Bildirim e-postası oluşturulamadı:', mailError); }
       navigate('/success');
     } catch (err) {
-      console.error("Arıza kaydedilirken hata:", err);
-      alert('Arıza kaydedilirken bir hata oluştu. Lütfen tekrar deneyin.');
-    } finally {
-      setSubmitting(false);
-    }
+      console.error('Arıza kaydedilirken hata:', err);
+      alert('Arıza kaydedilemedi. Lütfen bağlantınızı kontrol edip tekrar deneyin.');
+    } finally { setSubmitting(false); }
   };
 
-  if (loading) {
-    return <div className="text-center mt-2">Makine bilgileri yükleniyor...</div>;
-  }
-
-  if (error) {
-    return (
-      <div style={{ maxWidth: '100%', margin: '0 auto' }}>
-        <div className="card text-center">
-          <AlertCircle size={48} color="var(--color-status-open)" style={{ margin: '0 auto', marginBottom: '1rem' }} />
-          <h2 className="mb-2">Hata</h2>
-          <p className="color-text-muted mb-3">{error}</p>
-          <button className="btn btn-primary" onClick={() => navigate('/')}>Ana Sayfaya Dön</button>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="empty-state">Makine bilgileri doğrulanıyor…</div>;
+  if (error) return <div><button className="back-button" onClick={() => navigate('/')}><ArrowLeft size={17} />Saha başlangıcına dön</button><section className="card text-center" style={{ maxWidth: 560, margin: '2rem auto' }}><Info size={34} color="var(--color-status-open)" style={{ marginBottom: 12 }} /><h1 className="page-title" style={{ fontSize: '1.4rem' }}>Makine doğrulanamadı</h1><p className="page-subtitle" style={{ margin: '0.65rem 0 1.25rem' }}>{error}</p><button className="btn btn-primary" onClick={() => navigate('/')}>Kodu yeniden gir</button></section></div>;
 
   return (
-    <div style={{ maxWidth: '100%', margin: '0 auto' }}>
-      <button 
-        className="btn mb-2" 
-        style={{ padding: '0.5rem', background: 'transparent', color: 'var(--color-secondary)' }}
-        onClick={() => navigate('/')}
-      >
-        <ArrowLeft size={20} />
-        Vazgeç
-      </button>
-
-      {/* Makine Bilgi Kartı */}
-      <div className="card mb-3" style={{ borderLeft: '4px solid var(--color-primary)' }}>
-        <p className="color-text-muted mb-1" style={{ fontSize: '0.9rem', fontWeight: 600 }}>MAKİNE BİLGİSİ</p>
-        <h2 className="mb-1">{machine.ad}</h2>
-        <div className="flex justify-between items-center">
-          <div>
-            <span style={{ color: 'var(--color-secondary)', fontWeight: 500 }}>Kod:</span> {machine.kod}
-          </div>
-          <div>
-            <span style={{ color: 'var(--color-secondary)', fontWeight: 500 }}>Bölüm:</span> {machine.bolum_ad || "Belirtilmemiş"}
-          </div>
-        </div>
-      </div>
-
-      {/* Arıza Bildirim Formu */}
-      <div className="card">
-        <h3 className="mb-2">Arıza Bildir</h3>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="input-group">
-            <label className="input-label" htmlFor="description">Arıza Açıklaması (Zorunlu)</label>
-            <textarea
-              id="description"
-              className="input-field"
-              rows="4"
-              placeholder="Makinedeki sorunu kısaca açıklayın..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              required
-            ></textarea>
-          </div>
-
-          <div className="input-group">
-            <label className="input-label">Fotoğraf (Opsiyonel)</label>
-            
-            {!photoPreview ? (
-              <div style={{ 
-                border: '2px dashed #ccc', 
-                borderRadius: '8px', 
-                padding: '2rem', 
-                textAlign: 'center',
-                cursor: 'pointer',
-                backgroundColor: '#f9f9f9'
-              }}>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={handlePhotoChange}
-                  style={{ display: 'none' }}
-                  id="photo-upload"
-                />
-                <label htmlFor="photo-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                  <Camera size={32} color="var(--color-secondary-light)" />
-                  <span style={{ color: 'var(--color-secondary)' }}>Kamerayı aç veya fotoğraf seç</span>
-                </label>
-              </div>
-            ) : (
-              <div style={{ position: 'relative' }}>
-                <img 
-                  src={photoPreview} 
-                  alt="Önizleme" 
-                  style={{ width: '100%', borderRadius: '8px', maxHeight: '300px', objectFit: 'cover' }} 
-                />
-                <button 
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ position: 'absolute', top: '10px', right: '10px', background: 'white', padding: '0.5rem' }}
-                  onClick={() => { setPhoto(null); setPhotoPreview(null); }}
-                >
-                  Sil
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button 
-            type="submit" 
-            className="btn btn-primary mt-2" 
-            style={{ width: '100%' }}
-            disabled={submitting}
-          >
-            {submitting ? 'Gönderiliyor...' : 'Arıza Bildirimini Gönder'}
-          </button>
-        </form>
-      </div>
+    <div>
+      <button className="back-button" onClick={() => navigate('/')}><ArrowLeft size={17} />Saha başlangıcına dön</button>
+      <header className="page-header"><div><span className="eyebrow"><Wrench size={14} /> Doğrulanmış makine</span><h1 className="page-title">Arıza bildirimi oluştur</h1><p className="page-subtitle">Bildirim, ilgili bölümün takip akışına açık kayıt olarak iletilecektir.</p></div></header>
+      <section className="card machine-summary"><div className="machine-summary__icon"><Wrench size={22} /></div><div><span className="eyebrow">Makine bilgisi</span><h2>{machine.ad}</h2><div className="machine-summary__meta"><span>{machine.kod}</span><span>{machine.bolum_ad || 'Bölüm bilgisi yok'}</span></div></div></section>
+      <section className="card" style={{ maxWidth: 820 }}><h2 style={{ fontSize: '1.15rem' }}>Arıza detayları</h2><p className="page-subtitle" style={{ marginBottom: '1.2rem' }}>Sorunu mümkün olduğunca kısa ve net açıklayın. Fotoğraf eklemek çözüm sürecini hızlandırabilir.</p><form onSubmit={handleSubmit}><div className="input-group"><label className="input-label" htmlFor="description">Arıza açıklaması <span style={{ color: 'var(--color-status-open)' }}>*</span></label><textarea id="description" className="input-field" rows="5" placeholder="Örn. Pres ünitesi başlatıldığında olağandışı ses geliyor ve işlem duruyor." value={description} onChange={(event) => setDescription(event.target.value)} required /></div><div className="input-group"><label className="input-label" htmlFor="photo-upload">Fotoğraf <span style={{ color: 'var(--color-text-muted)', fontWeight: 500 }}>(isteğe bağlı)</span></label>{!photoPreview ? <label className="photo-dropzone" htmlFor="photo-upload"><ImagePlus size={25} /><span><strong>Fotoğraf ekleyin</strong><small>Arızayı destekleyen bir görsel seçin veya kamerayı kullanın.</small></span><input id="photo-upload" type="file" accept="image/*" onChange={handlePhotoChange} /></label> : <div className="photo-preview"><img src={photoPreview} alt="Arıza fotoğrafı önizlemesi" /><button type="button" className="btn btn-secondary" onClick={() => { setPhoto(null); setPhotoPreview(null); }}><Trash2 size={16} />Kaldır</button></div>}</div><button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submitting}><Send size={18} />{submitting ? 'Bildirim kaydediliyor…' : 'Arıza bildirimini gönder'}</button></form></section>
     </div>
   );
 }
