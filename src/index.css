@@ -1,0 +1,345 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
+:root {
+  --color-primary: #FBC02D;
+  --color-primary-dark: #F57F17;
+  --color-primary-light: #FFF9C4;
+  --color-header-bg: #212121;
+  --color-header-text: #FFFFFF;
+  --color-background: #F5F6F8;
+  --color-surface: #FFFFFF;
+  --color-text: #212121;
+  --color-text-muted: #757575;
+  --color-status-open: #E53935;
+  --color-status-progress: #FBC02D;
+  --color-status-resolved: #43A047;
+  --border-radius: 12px;
+  --border-radius-lg: 16px;
+  --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --box-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Outfit', sans-serif;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* =============================================
+   APP CONTAINER - TAM GENISLIK
+   ============================================= */
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-background);
+  position: relative;
+}
+
+/* =============================================
+   HEADER
+   ============================================= */
+.header {
+  background-color: var(--color-header-bg);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.header-logo {
+  font-weight: 700;
+  font-size: 1.8rem;
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.header-logo span {
+  color: var(--color-header-text);
+  font-size: 1.2rem;
+  font-weight: 400;
+}
+
+.header-subtitle {
+  color: #AAA;
+  font-size: 0.85rem;
+  margin-top: 0.1rem;
+}
+
+/* Desktop nav - mobilde gizli */
+.header-nav {
+  display: none !important;
+}
+
+.header-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #999;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.header-nav-item:hover {
+  color: var(--color-header-text);
+  background-color: rgba(255,255,255,0.08);
+}
+
+.header-nav-item.active {
+  color: var(--color-primary);
+  background-color: rgba(251, 192, 45, 0.12);
+}
+
+/* =============================================
+   MAIN CONTENT
+   ============================================= */
+.main-content {
+  flex: 1;
+  padding: 1.5rem;
+  padding-bottom: 90px;
+  overflow-y: auto;
+}
+
+/* =============================================
+   BOTTOM NAV (Mobil)
+   ============================================= */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--color-surface);
+  display: flex;
+  justify-content: space-around;
+  padding: 0.8rem 0;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  z-index: 100;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.nav-item.active {
+  color: var(--color-text);
+}
+
+.nav-item.active .nav-icon-wrapper {
+  background-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.nav-icon-wrapper {
+  width: 48px;
+  height: 32px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease;
+}
+
+/* =============================================
+   COMMON COMPONENTS
+   ============================================= */
+.card {
+  background-color: var(--color-surface);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--box-shadow);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(0,0,0,0.02);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  font-size: 1.1rem;
+  color: var(--color-text);
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  box-shadow: 0 4px 10px rgba(251, 192, 45, 0.3);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-dark);
+}
+
+.btn-secondary {
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-text-muted);
+  color: var(--color-text);
+}
+
+.btn-secondary:hover {
+  background-color: #F0F0F0;
+}
+
+.input-group {
+  margin-bottom: 1.2rem;
+}
+
+.input-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.input-field {
+  width: 100%;
+  padding: 1rem 1.2rem;
+  border: 1px solid #E0E0E0;
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  background-color: #FAFAFA;
+  transition: all 0.2s ease;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  background-color: var(--color-surface);
+  box-shadow: 0 0 0 4px rgba(251, 192, 45, 0.1);
+}
+
+/* =============================================
+   UTILITIES
+   ============================================= */
+.text-center { text-align: center; }
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 1.5rem; }
+.mt-2 { margin-top: 1rem; }
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.gap-2 { gap: 0.5rem; }
+.gap-4 { gap: 1rem; }
+
+/* =============================================
+   DESKTOP (768px ve uzeri) - TAM GENISLIK
+   ============================================= */
+@media (min-width: 768px) {
+  /* Header: logo sol, nav sag, tam genislik */
+  .header {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 1rem 3rem;
+  }
+
+  .header-left {
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .header-subtitle {
+    margin-top: 0;
+  }
+
+  /* Desktop nav gorunsun */
+  .header-nav {
+    display: flex !important;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Mobil alt menu gizle */
+  .bottom-nav {
+    display: none !important;
+  }
+
+  /* Main content genis padding */
+  .main-content {
+    padding: 2.5rem 4rem;
+    padding-bottom: 2.5rem;
+  }
+
+  /* Home grid - 2 kolon, tam genislik */
+  .home-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+    align-items: stretch;
+    flex-direction: unset !important;
+    height: auto !important;
+  }
+
+  .home-grid > .card {
+    margin-bottom: 0;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 1200px) {
+  .main-content {
+    padding: 3rem 6rem;
+  }
+
+  .home-grid {
+    gap: 3rem;
+  }
+
+  .home-grid > .card {
+    min-height: 450px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .main-content {
+    padding: 3rem 8rem;
+  }
+}
