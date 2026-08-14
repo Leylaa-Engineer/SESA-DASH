@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  base: '/sesa/',
+  // Vercel uygulamayı alan adının kökünde yayınlar; varlıklar /sesa/ altından çağrılmamalıdır.
+  base: '/',
   plugins: [
     react(),
     VitePWA({
@@ -15,6 +16,8 @@ export default defineConfig({
         theme_color: '#E8891D',
         background_color: '#F4F7F6',
         display: 'standalone',
+        start_url: '/',
+        scope: '/',
         icons: [
           {
             src: 'pwa-192x192.png',
