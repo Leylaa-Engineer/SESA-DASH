@@ -14,20 +14,30 @@ export function AuthProvider({ children }) {
   const [userRole, setUserRole] = useState(null); // 'sorumlu' veya 'admin'
   const [loading, setLoading] = useState(true);
 
-  // Giriş Yap
   function login(email, password) {
     return signInWithEmailAndPassword(auth, email, password);
   }
 
-  // Çıkış Yap
   function logout() {
     return signOut(auth);
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // Firestore'dan rolü kontrol et
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        setCurrentUser(null);
+        setUserRole(null);
+        setLoading(false);
+        return;
+      }
+
+      // Temel kullanıcı bilgisini hemen yayınla; dashboard rol sorgusunu beklemeden açılabilir.
+      setCurrentUser(user);
+      setUserRole(null);
+      setLoading(false);
+
+      // Rol bilgisi ve son giriş güncellemesi arka planda tamamlanır.
+      (async () => {
         try {
           const sorumluRef = doc(db, 'sorumlular', user.uid);
           const sorumluDoc = await getDoc(sorumluRef);
@@ -35,51 +45,30 @@ export function AuthProvider({ children }) {
           if (sorumluDoc.exists()) {
             const docData = sorumluDoc.data();
             let dbRol = docData.rol || 'sorumlu';
-            if (dbRol === 'yonetici') dbRol = 'admin'; // Geriye dönük uyumluluk
-            
-            // Son giriş zamanını Firestore'a kaydet/güncelle
-            await updateDoc(sorumluRef, {
-              sonGirisTarihi: serverTimestamp()
-            }).catch((err) => console.log("Son giriş güncellenemedi", err));
-
+            if (dbRol === 'yonetici') dbRol = 'admin';
             setUserRole(dbRol);
             setCurrentUser({ ...user, ...docData, rol: dbRol });
-          } else {
-            const yoneticiRef = doc(db, 'yoneticiler', user.uid);
-            const yoneticiDoc = await getDoc(yoneticiRef);
+            updateDoc(sorumluRef, { sonGirisTarihi: serverTimestamp() }).catch((err) => console.log('Son giriş güncellenemedi', err));
+            return;
+          }
 
-            if (yoneticiDoc.exists()) {
-              await updateDoc(yoneticiRef, {
-                sonGirisTarihi: serverTimestamp()
-              }).catch((err) => console.log("Son giriş güncellenemedi", err));
-
-              setUserRole('admin');
-              setCurrentUser({ ...user, ...yoneticiDoc.data() });
-            } else {
-              setUserRole(null);
-              setCurrentUser(user);
-            }
+          const yoneticiRef = doc(db, 'yoneticiler', user.uid);
+          const yoneticiDoc = await getDoc(yoneticiRef);
+          if (yoneticiDoc.exists()) {
+            setUserRole('admin');
+            setCurrentUser({ ...user, ...yoneticiDoc.data() });
+            updateDoc(yoneticiRef, { sonGirisTarihi: serverTimestamp() }).catch((err) => console.log('Son giriş güncellenemedi', err));
           }
         } catch (error) {
-          console.error("Rol bilgisi alınamadı", error);
-          setCurrentUser(user);
+          console.error('Rol bilgisi alınamadı', error);
         }
-      } else {
-        setCurrentUser(null);
-        setUserRole(null);
-      }
-      setLoading(false);
+      })();
     });
 
     return unsubscribe;
   }, []);
 
-  const value = {
-    currentUser,
-    userRole,
-    login,
-    logout
-  };
+  const value = { currentUser, userRole, login, logout };
 
   return (
     <AuthContext.Provider value={value}>

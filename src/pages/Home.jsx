@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Html5Qrcode } from 'html5-qrcode';
 import { ArrowRight, Camera, Keyboard, QrCode, ScanLine, ShieldCheck } from 'lucide-react';
 
 function extractMachineCode(rawText) {
@@ -16,23 +15,39 @@ export default function Home() {
   useEffect(() => {
     let scanner;
     let navigating = false;
+    let cancelled = false;
     if (!scannerActive) return undefined;
-    scanner = new Html5Qrcode('qr-reader');
-    scanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 230, height: 230 } },
-      async (decodedText) => {
-        if (navigating) return;
-        navigating = true;
-        try { await scanner.stop(); } catch { /* kamera akışı sayfa değişirken zaten kapanabilir */ }
-        navigate(`/machine/${extractMachineCode(decodedText)}`);
-      },
-      () => {},
-    ).catch(() => {
-      alert('Kameraya erişilemedi. Lütfen kamera izni verin veya makine kodunu elle girin.');
-      setScannerActive(false);
-    });
-    return () => { if (scanner?.isScanning) scanner.stop().catch(() => {}); };
+
+    const startScanner = async () => {
+      try {
+        // Büyük QR paketi yalnızca kullanıcı gerçekten kamerayı açtığında yüklenir.
+        const { Html5Qrcode } = await import('html5-qrcode');
+        if (cancelled) return;
+        scanner = new Html5Qrcode('qr-reader');
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 230, height: 230 } },
+          async (decodedText) => {
+            if (navigating) return;
+            navigating = true;
+            try { await scanner.stop(); } catch { /* kamera akışı sayfa değişirken zaten kapanabilir */ }
+            navigate(`/machine/${extractMachineCode(decodedText)}`);
+          },
+          () => {},
+        );
+      } catch {
+        if (!cancelled) {
+          alert('Kameraya erişilemedi. Lütfen kamera izni verin veya makine kodunu elle girin.');
+          setScannerActive(false);
+        }
+      }
+    };
+
+    startScanner();
+    return () => {
+      cancelled = true;
+      if (scanner?.isScanning) scanner.stop().catch(() => {});
+    };
   }, [scannerActive, navigate]);
 
   const handleManualSubmit = (event) => {
