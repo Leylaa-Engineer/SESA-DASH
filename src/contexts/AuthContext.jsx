@@ -13,6 +13,7 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userRole, setUserRole] = useState(null); // 'sorumlu' veya 'admin'
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   function login(email, password) {
     return signInWithEmailAndPassword(auth, email, password);
@@ -27,6 +28,7 @@ export function AuthProvider({ children }) {
       if (!user) {
         setCurrentUser(null);
         setUserRole(null);
+        setProfileLoading(false);
         setLoading(false);
         return;
       }
@@ -34,6 +36,7 @@ export function AuthProvider({ children }) {
       // Temel kullanıcı bilgisini hemen yayınla; dashboard rol sorgusunu beklemeden açılabilir.
       setCurrentUser(user);
       setUserRole(null);
+      setProfileLoading(true);
       setLoading(false);
 
       // Rol bilgisi ve son giriş güncellemesi arka planda tamamlanır.
@@ -61,6 +64,8 @@ export function AuthProvider({ children }) {
           }
         } catch (error) {
           console.error('Rol bilgisi alınamadı', error);
+        } finally {
+          setProfileLoading(false);
         }
       })();
     });
@@ -68,7 +73,7 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  const value = { currentUser, userRole, login, logout };
+  const value = { currentUser, userRole, loading, profileLoading, login, logout };
 
   return (
     <AuthContext.Provider value={value}>

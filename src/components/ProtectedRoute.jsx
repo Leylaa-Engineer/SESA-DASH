@@ -3,9 +3,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { ClipboardList, LayoutDashboard, LogOut, Settings, Users, Wrench } from 'lucide-react';
 
 export default function ProtectedRoute({ children }) {
-  const { currentUser, userRole, logout } = useAuth();
+  const { currentUser, userRole, loading, profileLoading, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+
+  if (loading || (currentUser && profileLoading)) {
+    return <div className="app-container"><main className="main-content route-loading" aria-live="polite">Oturum ve yetkili bilgileri hazırlanıyor…</main></div>;
+  }
 
   if (!currentUser) return <Navigate to="/login" replace />;
 
