@@ -1,43 +1,16 @@
-# SESA Operasyon Takip Sistemi
+# React + Vite
 
-SESA saha ekiplerinin QR kod veya makine kodu üzerinden arıza bildirmesini, yetkili kullanıcıların da kayıtları takip edip durumlarını yönetmesini sağlayan React uygulamasıdır.
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
-## Mimari
+Currently, two official plugins are available:
 
-Uygulama artık Firebase/Firestore yerine **PostgreSQL + Node.js API + React/Vite** mimarisi kullanır. React istemcisi veritabanına doğrudan bağlanmaz; tüm veri işlemleri `server/index.js` içindeki API üzerinden yürütülür. Kimlik doğrulama ve roller de PostgreSQL `users` tablosunda tutulur.
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## Yerel kurulum
+## React Compiler
 
-Önce PostgreSQL sunucusunu başlatın:
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-```bash
-docker compose up -d postgres
-```
+## Expanding the Oxlint configuration
 
-Ardından bağımlılıkları kurup uygulamayı başlatın:
-
-```bash
-npm install
-cp .env.example .env
-npm run dev:full
-```
-
-Frontend `http://localhost:5173`, SQL API ise `http://localhost:3001` adresinde çalışır. API sağlık kontrolü için `http://localhost:3001/api/health` adresi kullanılabilir.
-
-## Veritabanı
-
-Şema `server/schema.sql` dosyasındadır. PostgreSQL tabloları; `users`, `departments`, `machines`, `issues`, `issue_status_history` ve `settings` olarak ayrılmıştır. Arıza durum geçmişi, Firestore’daki dizi yapısı yerine ilişkisel `issue_status_history` tablosunda tutulur.
-
-Mevcut Firebase projesindeki gerçek kayıtların aktarımı için Firebase yönetici kimlik bilgileri gerekir. Bu bilgiler paylaşılmadan canlı veriler otomatik olarak çekilmez; uygulama yeni PostgreSQL veritabanı üzerinde temiz şema ile çalışır.
-
-## Komutlar
-
-| Komut | Açıklama |
-|---|---|
-| `npm run dev` | Yalnızca Vite frontend’ini başlatır |
-| `npm run server` | PostgreSQL API sunucusunu başlatır |
-| `npm run dev:full` | Frontend ve API’yi birlikte başlatır |
-| `npm run build` | Üretim frontend derlemesi |
-| `npm run lint` | Oxlint kontrolü |
-
-Gerçek bağlantı bilgilerini `.env` dosyasında tutun; `.env` dosyasını GitHub’a göndermeyin. Şablon olarak yalnızca `.env.example` paylaşılmalıdır.
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
