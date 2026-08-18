@@ -57,3 +57,14 @@
 
 - [ ] Vercel health fonksiyonundaki bağlantı/ortam hatasını function invocation failure yerine kontrollü 503 olarak döndür
 - [ ] Vercel production `/api/health` yanıtını düzeltme sonrası tekrar doğrula
+
+## CaniasERP Uyumlu SQL Şablonu
+
+- [x] Mevcut SESA-DASH veri modelini Canias makine kodu, iş merkezi/departman kodu ve personel sicil no alanlarıyla karşılaştır
+- [x] Yöneticinin uygulayabileceği açıklamalı MySQL schema ve INSERT taslak dosyasını hazırla
+- [x] SQL şablonunu MySQL sözdizimi, foreign key sırası ve örnek veri olmaması açısından doğrula
+- [x] Canias veri aktarımı için alan eşleştirme ve kullanım rehberini teslim et
+
+## Yeni Production QA Bulgusu
+
+- [ ] Vercel production `/api/health` hâlâ FUNCTION_INVOCATION_FAILED dönüyor; gerçek runtime logu veya Vercel proje erişimiyle teşhis et
