@@ -1,15 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ImagePlus, Info, Send, Trash2, Wrench } from 'lucide-react';
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import { sendIssueEmail } from '../utils/emailService';
-import { useAuth } from '../contexts/AuthContext';
+import { mysqlApi } from '../api/client';
 
 export default function MachineInfo() {
   const { code } = useParams();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
   const [machine, setMachine] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -22,9 +18,9 @@ export default function MachineInfo() {
     const fetchMachine = async () => {
       setLoading(true);
       try {
-        const result = await getDocs(query(collection(db, 'makineler'), where('kod', '==', code)));
-        if (result.empty) setError('Bu koda ait aktif makine bulunamadı. Etiketi kontrol edip tekrar deneyin.');
-        else setMachine({ id: result.docs[0].id, ...result.docs[0].data() });
+        const machines = await mysqlApi.machines(code);
+        if (!machines.length) setError('Bu koda ait aktif makine bulunamadı. Etiketi kontrol edip tekrar deneyin.');
+        else setMachine(machines[0]);
       } catch (err) {
         console.error('Makine getirilirken hata:', err);
         setError('Makine bilgileri alınırken bir bağlantı sorunu oluştu.');
@@ -60,18 +56,12 @@ export default function MachineInfo() {
     if (!description.trim()) return;
     setSubmitting(true);
     const issueData = {
-      makine_id: machine.id, makine_kod: machine.kod, makine_ad: machine.ad,
-      bolum_id: machine.bolum_id, bolum_ad: machine.bolum_ad || 'Tanımlanmamış bölüm',
-      ekleyen_email: currentUser?.email || 'Bilinmiyor', aciklama: description.trim(), foto_url: photo,
-      durum: 'Açık', olusturulma_tarihi: serverTimestamp(), cozulme_tarihi: null, cozen_sorumlu_id: null,
-      durum_gecmisi: [{ durum: 'Açık', tarih: new Date(), sorumlu_id: null }],
+      makine_id: machine.id,
+      aciklama: description.trim(),
+      foto_url: photo,
     };
     try {
-      await addDoc(collection(db, 'arizalar'), issueData);
-      try {
-        const responsible = await getDocs(query(collection(db, 'sorumlular'), where('bolum_idler', 'array-contains', machine.bolum_id)));
-        responsible.forEach((item) => { if (item.data().email) sendIssueEmail(issueData, item.data().email); });
-      } catch (mailError) { console.error('Bildirim e-postası oluşturulamadı:', mailError); }
+      await mysqlApi.createIssue(issueData);
       navigate('/success');
     } catch (err) {
       console.error('Arıza kaydedilirken hata:', err);

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, QrCode as QrIcon, Edit2, X, Check } from 'lucide-react';
-import { db } from '../firebase/config';
-import { collection, query, where, getDocs, addDoc, deleteDoc, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { mysqlApi } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 import QRCode from 'qrcode';
 
@@ -34,18 +33,13 @@ export default function MachineManager() {
   const fetchMachines = async () => {
     if (!currentUser) return;
 
-    if (!currentUser.bolum_idler || currentUser.bolum_idler.length === 0) {
-      setLoading(false);
-      return;
-    }
-    
     setLoading(true);
     try {
-      const bolumId = currentUser.bolum_idler[0];
-      const q = query(collection(db, "makineler"), where("bolum_id", "==", bolumId));
-      const querySnapshot = await getDocs(q);
-      const machineList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setMachines(machineList);
+      const machineList = await mysqlApi.machines();
+      const visibleMachines = isAdmin || !currentUser.bolum_idler?.length
+        ? machineList
+        : machineList.filter((machine) => currentUser.bolum_idler.includes(machine.bolum_id));
+      setMachines(visibleMachines);
     } catch (err) {
       console.error("Makineler getirilirken hata:", err);
     } finally {
@@ -68,16 +62,7 @@ export default function MachineManager() {
     try {
       const bolumId = currentUser.bolum_idler[0];
       const newCode = generateMachineCode();
-      await addDoc(collection(db, "makineler"), {
-        kod: newCode,
-        ad: newMachineName,
-        bolum_id: bolumId,
-        bolum_ad: "Bölüm Bilgisi",
-        ekleyen_sorumlu_id: currentUser.id,
-        ekleyen_email: currentUser.email || 'Bilinmiyor',
-        olusturulma_tarihi: serverTimestamp(),
-        aktif: true
-      });
+      await mysqlApi.createMachine({ kod: newCode, ad: newMachineName, bolum_id: bolumId });
       setNewMachineName('');
       setShowAddForm(false);
       fetchMachines();
@@ -93,7 +78,7 @@ export default function MachineManager() {
     if (isAdmin) return; // Yöneticiler silemez
     if (window.confirm("Bu makineyi silmek istediğinize emin misiniz? Arıza kayıtları yetim kalabilir.")) {
       try {
-        await deleteDoc(doc(db, "makineler", machineId));
+        await mysqlApi.deleteMachine(machineId);
         fetchMachines();
       } catch (err) {
         console.error("Makine silinirken hata:", err);
@@ -113,9 +98,7 @@ export default function MachineManager() {
     if (!editMachineName.trim()) return;
 
     try {
-      await updateDoc(doc(db, "makineler", machineId), {
-        ad: editMachineName
-      });
+      await mysqlApi.updateMachine(machineId, { ad: editMachineName });
       setMachines(machines.map(m => m.id === machineId ? { ...m, ad: editMachineName } : m));
       setEditingMachineId(null);
     } catch (err) {

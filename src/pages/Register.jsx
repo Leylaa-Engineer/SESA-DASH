@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, Mail, KeyRound, Building2 } from 'lucide-react';
-import { auth, db } from '../firebase/config';
+import { auth } from '../firebase/config';
+import { mysqlApi } from '../api/client';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { useAuth } from '../contexts/AuthContext';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -43,41 +42,19 @@ export default function Register() {
     setLoading(true);
 
     try {
-      // 1. Admin şifresini doğrula ve rolü belirle
-      let rol = 'sorumlu';
-      const ayarlarDoc = await getDoc(doc(db, "ayarlar", "admin_sifreleri"));
-      const sorumluSifre = ayarlarDoc.exists() ? ayarlarDoc.data().sorumlu_kayit_sifresi : 'SESA-ADMIN-2026';
-      
-      // Eğer bölüm olarak "Yönetici" seçildiyse veya admin kodu patron kodu ise rol admin olur
-      if (formData.bolum_id === 'yonetici' || formData.adminCode === 'SESA-PATRON-2026') {
-        rol = 'admin';
-      } else if (formData.adminCode === sorumluSifre) {
-        rol = 'sorumlu';
-      } else {
-        throw new Error('Geçersiz kayıt kodu!');
-      }
+      // Firebase kimliğini oluştur; kayıt kodu ve rol doğrulaması MySQL API’de yapılır.
+      // 1. Firebase Auth ile kullanıcı oluştur
+      await createUserWithEmailAndPassword(auth, formData.email, formData.password);
 
-      // 2. Firebase Auth ile kullanıcı oluştur
-      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      const user = userCredential.user;
+      // 3. Kullanıcı profilini MySQL’e kaydet
+      await mysqlApi.createUser({ name: formData.name, bolum_id: formData.bolum_id, adminCode: formData.adminCode });
 
-      // 3. Kullanıcı (Sorumlu/Yönetici) bilgisini Firestore'a kaydet
-      await setDoc(doc(db, 'sorumlular', user.uid), {
-        id: user.uid,
-        ad_soyad: formData.name,
-        email: formData.email,
-        bolum_idler: [formData.bolum_id], 
-        rol: rol,
-        aktif: true,
-        olusturulma_tarihi: new Date()
-      });
-
-      // 4. Başarılı olunca dashboard'a yönlendir
+      // 4. Başarılı olunca dashboard’a yönlendir
       navigate('/dashboard');
 
     } catch (err) {
       console.error(err);
-      if (err.message === 'Geçersiz kayıt kodu!') {
+      if (err.message === 'Geçersiz kayıt kodu' || err.message === 'Geçersiz kayıt kodu!') {
         setError(err.message);
       } else if (err.code === 'auth/email-already-in-use') {
         setError('Bu e-posta adresi zaten kullanılıyor.');

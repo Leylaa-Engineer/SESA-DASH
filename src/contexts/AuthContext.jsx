@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db } from '../firebase/config';
+import { auth } from '../firebase/config';
+import { mysqlApi } from '../api/client';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
@@ -42,26 +42,9 @@ export function AuthProvider({ children }) {
       // Rol bilgisi ve son giriş güncellemesi arka planda tamamlanır.
       (async () => {
         try {
-          const sorumluRef = doc(db, 'sorumlular', user.uid);
-          const sorumluDoc = await getDoc(sorumluRef);
-
-          if (sorumluDoc.exists()) {
-            const docData = sorumluDoc.data();
-            let dbRol = docData.rol || 'sorumlu';
-            if (dbRol === 'yonetici') dbRol = 'admin';
-            setUserRole(dbRol);
-            setCurrentUser({ ...user, ...docData, rol: dbRol });
-            updateDoc(sorumluRef, { sonGirisTarihi: serverTimestamp() }).catch((err) => console.log('Son giriş güncellenemedi', err));
-            return;
-          }
-
-          const yoneticiRef = doc(db, 'yoneticiler', user.uid);
-          const yoneticiDoc = await getDoc(yoneticiRef);
-          if (yoneticiDoc.exists()) {
-            setUserRole('admin');
-            setCurrentUser({ ...user, ...yoneticiDoc.data() });
-            updateDoc(yoneticiRef, { sonGirisTarihi: serverTimestamp() }).catch((err) => console.log('Son giriş güncellenemedi', err));
-          }
+          const profile = await mysqlApi.me();
+          setUserRole(profile.rol || null);
+          setCurrentUser({ ...user, ...profile });
         } catch (error) {
           console.error('Rol bilgisi alınamadı', error);
         } finally {

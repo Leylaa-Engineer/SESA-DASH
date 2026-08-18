@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { mysqlApi } from '../api/client';
 import { Users, Trash2, Edit2, ShieldAlert, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -22,14 +21,8 @@ export default function UserManager() {
 
   const fetchData = async () => {
     try {
-      // Bölümleri çek
-      const bSnap = await getDocs(collection(db, "bolumler"));
-      const bList = bSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setBolumler(bList);
-
-      // Kullanıcıları (sorumlular) çek
-      const uSnap = await getDocs(collection(db, "sorumlular"));
-      const uList = uSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const [bList, uList] = await Promise.all([mysqlApi.departments(), mysqlApi.users()]);
+      setBolumler(bList.map((item) => ({ id: item.id, ad: item.name })));
       setUsers(uList);
     } catch (error) {
       console.error("Veri çekme hatası:", error);
@@ -69,7 +62,7 @@ export default function UserManager() {
     }
     if (window.confirm('Bu personeli sistemden silmek istediğinize emin misiniz? (Geçmiş işlemleri kalır, ancak giriş yapamaz)')) {
       try {
-        await deleteDoc(doc(db, "sorumlular", userId));
+        await mysqlApi.deleteUser(userId);
         setUsers(users.filter(u => u.id !== userId));
       } catch (error) {
         console.error("Silme hatası:", error);
@@ -89,9 +82,7 @@ export default function UserManager() {
 
   const handleSaveEdit = async (userId) => {
     try {
-      await updateDoc(doc(db, "sorumlular", userId), {
-        bolum_idler: [editBolumId]
-      });
+      await mysqlApi.updateUser(userId, { bolum_id: editBolumId });
       setUsers(users.map(u => u.id === userId ? { ...u, bolum_idler: [editBolumId] } : u));
       setEditingUserId(null);
     } catch (error) {
