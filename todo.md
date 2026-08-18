@@ -68,3 +68,9 @@
 ## Yeni Production QA Bulgusu
 
 - [ ] Vercel production `/api/health` hâlâ FUNCTION_INVOCATION_FAILED dönüyor; gerçek runtime logu veya Vercel proje erişimiyle teşhis et
+
+## Canias Veri Giriş Tabloları
+
+- [x] Canias uyumlu altı tablo için boş veri giriş şablonlarını oluştur
+- [x] Yöneticiye tablo ilişkilerini ve doldurma sırasını açıklayan veri sözlüğü hazırla
+- [x] Şablon dosyasını doğrula ve GitHub’a gönder
