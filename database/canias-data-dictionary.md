@@ -57,4 +57,4 @@ Bu veri sözlüğü, SESA-DASH ile CaniasERP arasında ortak kullanılacak temel
 
 Önce Canias’tan iş merkezi/departman listesini `departments` tablosuna aktarın. Ardından personel listesini `users` tablosuna, personel yetkilerini `user_departments` tablosuna ve makine listesini `machines` tablosuna aktarın. Arıza kayıtları ancak makine ve bildiren personel kartları oluşturulduktan sonra eklenmelidir.
 
-Boş doldurma dosyası `canias-data-entry-template.xlsx`, SQL kurulum ve INSERT taslakları ise `canias-mysql-template.sql` dosyasında yer alır.
+Doğrudan veri yazılacak boş Excel dosyası `canias-data-entry-template.xlsx` içinde dört ana sayfa olarak yer alır: Departmanlar, Personel, Makineler ve Arıza/Bakım. SQL tarafında bu veriler ilişkisel olarak altı tabloya ayrılır; kurulum ve INSERT taslakları `canias-mysql-template.sql` dosyasındadır.

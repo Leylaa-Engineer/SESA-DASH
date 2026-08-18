@@ -71,6 +71,6 @@
 
 ## Canias Veri Giriş Tabloları
 
-- [x] Canias uyumlu altı tablo için boş veri giriş şablonlarını oluştur
+- [x] Canias uyumlu altı tablo için boş veri giriş şablonlarını oluştur (SQL ilişkisel yapı + 4 doğrudan Excel giriş sayfası)
 - [x] Yöneticiye tablo ilişkilerini ve doldurma sırasını açıklayan veri sözlüğü hazırla
 - [x] Şablon dosyasını doğrula ve GitHub’a gönder
