@@ -48,3 +48,9 @@
 - [x] Makineler, kullanıcılar, arızalar ve durum geçmişi için sabit frontend verisi kullanılmadığını doğrula
 - [x] API listeleme işlemlerinin her istekte MySQL’den güncel veri okuduğunu doğrula
 - [x] Kayıt/güncelleme/silme sonrası ilgili listelerin yeniden sorgulandığını ve güncel kaldığını doğrula
+
+## Vercel API Route QA
+
+- [ ] Production `/api/health` 404 nedenini Vercel build/root route yapılandırmasında teşhis et
+- [x] API fonksiyonlarının Vercel’de algılanması için gerekli yapılandırmayı ekle
+- [ ] GitHub deployment sonrası `/api/health` ve frontend route’larını tekrar doğrula
