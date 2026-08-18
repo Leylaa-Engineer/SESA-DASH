@@ -21,7 +21,7 @@ SESA-DASH mevcut endpoint sözleşmesi nedeniyle arıza kayıtlarını `issues` 
 mysql --host=HOST --user=USER --password DB_NAME < database/schema.sql
 ```
 
-Canias’a ait gerçek iş merkezi, makine ve personel kayıtlarını `database/canias-mysql-template.sql` içindeki yorum satırı INSERT taslaklarını doldurarak veya `database/canias-data-entry-template.xlsx` dosyasından dönüştürerek ekleyin. Veri ekleme sırası `departments → users → user_departments → machines → issues` olmalıdır.
+Canias’a ait gerçek iş merkezi, makine, personel ve arıza kayıtlarını `database/sesa-mysql-data-import-template.xlsx` dosyasındaki sayfalara girin. SQL kurulum ve INSERT taslakları için `database/canias-mysql-template.sql` dosyasını kullanın. Veri ekleme sırası `departments → users → user_departments → machines → issues` olmalıdır.
 
 ## 3. Ortam değişkenleri
 

@@ -69,6 +69,13 @@
 
 - [ ] Vercel production `/api/health` hâlâ FUNCTION_INVOCATION_FAILED dönüyor; gerçek runtime logu veya Vercel proje erişimiyle teşhis et
 
+## Kapsamlı MySQL Veri Hazırlama Excel’i
+
+- [ ] Güncel MySQL şemasındaki tüm tabloları ve foreign key ilişkilerini Excel aktarım dosyasına yansıt
+- [ ] Gerçek veri girişine uygun başlıklar, açıklamalar, zorunluluk ve örnek formatları ekle
+- [ ] Tarih, ENUM, rol, öncelik ve foreign key alanları için Excel doğrulamalarını oluştur
+- [ ] Boş ve sahte müşteri verisi içermeyen Excel aktarım dosyasını doğrula ve projeye kaydet
+
 ## Firebase’den Tam MySQL Dönüşümü
 
 - [x] Firebase ve Firestore bağımlılıklarını, çağrılarını ve dosyalarını envanterle
