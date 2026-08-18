@@ -54,3 +54,6 @@
 - [ ] Production `/api/health` 404 nedenini Vercel build/root route yapılandırmasında teşhis et
 - [x] API fonksiyonlarının Vercel’de algılanması için gerekli yapılandırmayı ekle
 - [ ] GitHub deployment sonrası `/api/health` ve frontend route’larını tekrar doğrula
+
+- [ ] Vercel health fonksiyonundaki bağlantı/ortam hatasını function invocation failure yerine kontrollü 503 olarak döndür
+- [ ] Vercel production `/api/health` yanıtını düzeltme sonrası tekrar doğrula
