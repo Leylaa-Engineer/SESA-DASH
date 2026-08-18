@@ -2,7 +2,7 @@
 -- SESA-DASH | CaniasERP Uyumlu MySQL Veri Tabanı Şablonu
 -- ============================================================================
 -- Amaç:
---   SESA-DASH arıza ve bakım yönetim sisteminin Firestore veri modelini,
+--   SESA-DASH arıza ve bakım yönetim sisteminin belge tabanlı eski modelini,
 --   CaniasERP ile ortak kod alanları kullanacak ilişkisel MySQL yapısına taşımak.
 --
 -- UYUMLULUK NOTU:
@@ -61,7 +61,8 @@ CREATE TABLE IF NOT EXISTS departments (
 -- ============================================================================
 -- 2. KULLANICILAR / PERSONEL
 -- ============================================================================
--- firebase_uid kimlik doğrulama için tutulur; personel sicil no iş verisi anahtarıdır.
+-- users.id MySQL kimlik anahtarıdır; personel sicil no ERP eşleştirme alanıdır.
+-- password_hash yalnızca sunucu tarafından üretilir; düz metin parola yazılmaz.
 -- Rol değerleri uygulamada küçük harf ve sabit kod olarak saklanır:
 --   admin       = Yönetici
 --   operator    = Operatör
@@ -70,10 +71,10 @@ CREATE TABLE IF NOT EXISTS departments (
 
 CREATE TABLE IF NOT EXISTS users (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  firebase_uid VARCHAR(128) NULL COMMENT 'Firebase Auth kullanıcı UID değeri',
   personnel_no VARCHAR(50) NULL COMMENT 'Canias Personel Sicil No; ERP eşleştirmesi tamamlanana kadar NULL olabilir',
   full_name VARCHAR(180) NOT NULL,
   email VARCHAR(254) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL COMMENT 'bcrypt/argon2 hash; düz metin saklanmaz',
   role ENUM('admin', 'operator', 'maintenance', 'sorumlu') NOT NULL DEFAULT 'operator',
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   last_login_at DATETIME(3) NULL,
@@ -82,7 +83,6 @@ CREATE TABLE IF NOT EXISTS users (
   PRIMARY KEY (id),
   UNIQUE KEY uq_users_personnel_no (personnel_no),
   UNIQUE KEY uq_users_email (email),
-  UNIQUE KEY uq_users_firebase_uid (firebase_uid),
   KEY idx_users_role_active (role, is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_turkish_ci;
 
@@ -194,13 +194,12 @@ CREATE TABLE IF NOT EXISTS issue_status_history (
 --   ('[IS_MERKEZI_KODU]', '[IS_MERKEZI_KODU]', '[DEPARTMAN_KODU]', '[IS_MERKEZI_ADI]');
 
 -- Personel / Kullanıcı:
--- Firebase Auth hesabı açıldıktan sonra firebase_uid değerini güncelleyin.
 -- personnel_no alanı mevcut SESA-DASH kayıt endpointiyle uyum için NULL olabilir;
 -- üretim kullanımında Canias eşleştirmesi tamamlanınca doldurulması önerilir.
 -- INSERT INTO users
---   (firebase_uid, personnel_no, full_name, email, role)
+--   (personnel_no, full_name, email, password_hash, role)
 -- VALUES
---   ('[FIREBASE_UID_VEYA_NULL]', '[SICIL_NO]', '[AD SOYAD]', '[EPOSTA]', 'operator');
+--   ('[SICIL_NO]', '[AD SOYAD]', '[EPOSTA]', '[SUNUCUDA_URETILEN_BCRYPT_HASH]', 'operator');
 -- Geçerli role değerleri: admin, operator, maintenance, sorumlu.
 
 -- Personelin iş merkezi/departman yetkisi:

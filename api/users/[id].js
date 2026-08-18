@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   try {
     const tokenUser = await requireUser(req);
     const db = getDb();
-    const [admins] = await db.query('SELECT role FROM users WHERE firebase_uid = ? OR email = ? LIMIT 1', [tokenUser.uid, tokenUser.email || '']);
+    const [admins] = await db.query('SELECT role FROM users WHERE id = ? LIMIT 1', [tokenUser.sub]);
     if (admins[0]?.role !== 'admin') return sendJson(res, 403, { error: 'Yalnızca yöneticiler kullanıcı yönetebilir' });
     if (req.method === 'DELETE') {
       await db.execute("UPDATE users SET is_active = FALSE WHERE id = ? AND role <> 'admin'", [id]);

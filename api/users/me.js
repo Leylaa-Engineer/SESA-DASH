@@ -5,19 +5,19 @@ export default async function handler(req, res) {
   try {
     const tokenUser = await requireUser(req);
     const [rows] = await getDb().query(
-      `SELECT u.id, u.firebase_uid AS firebaseUid, u.full_name AS fullName, u.email, u.role,
+      `SELECT u.id, u.personnel_no AS personnelNo, u.full_name AS fullName, u.email, u.role,
               u.is_active AS isActive, u.last_login_at AS lastLoginAt,
               GROUP_CONCAT(ud.department_id ORDER BY ud.department_id SEPARATOR ',') AS departmentIds
          FROM users u LEFT JOIN user_departments ud ON ud.user_id = u.id
-        WHERE u.firebase_uid = ? OR u.email = ?
+        WHERE u.id = ?
         GROUP BY u.id LIMIT 1`,
-      [tokenUser.uid, tokenUser.email || '']
+      [tokenUser.sub]
     );
     if (!rows[0]) return sendJson(res, 404, { error: 'MySQL kullanıcı profili bulunamadı' });
     const row = rows[0];
     return sendJson(res, 200, {
       id: row.id,
-      firebaseUid: row.firebaseUid,
+      personnel_no: row.personnelNo,
       ad_soyad: row.fullName,
       email: row.email,
       rol: row.role,

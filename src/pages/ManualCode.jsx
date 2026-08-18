@@ -13,8 +13,7 @@ export default function ManualCode() {
       setError('Lütfen bir makine kodu girin.');
       return;
     }
-    // Burada ileride Firestore'dan kodu kontrol edeceğiz
-    // Şimdilik mock olarak yönlendirelim
+    // Makine kodunun gerçek doğrulaması MachineInfo ekranında MySQL API üzerinden yapılır.
     navigate(`/machine/${code.toUpperCase()}`);
   };
 

@@ -10,13 +10,14 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "test": "node scripts/test-auth-migration.mjs"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
-    "firebase": "^12.17.1",
-    "firebase-admin": "^14.2.0",
+    "bcryptjs": "^3.0.3",
     "html5-qrcode": "^2.3.8",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.31.0",
     "mysql2": "^3.23.3",
     "qrcode": "^1.5.4",

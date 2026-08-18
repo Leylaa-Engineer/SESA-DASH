@@ -69,6 +69,14 @@
 
 - [ ] Vercel production `/api/health` hâlâ FUNCTION_INVOCATION_FAILED dönüyor; gerçek runtime logu veya Vercel proje erişimiyle teşhis et
 
+## Firebase’den Tam MySQL Dönüşümü
+
+- [x] Firebase ve Firestore bağımlılıklarını, çağrılarını ve dosyalarını envanterle
+- [x] Users, Departments, Machines ve Malfunctions için MySQL DDL/DML ve API sözleşmesini güncelle
+- [x] Node.js REST API bağlantı, kimlik doğrulama ve CRUD dosyalarını belgeleyip tamamla
+- [x] React frontend servislerini REST API’ye bağla ve Firestore çağrılarını kaldır
+- [x] Dönüşüm rehberi, paket listesi, env örneği ve doğrulama testlerini hazırla; JWT yanıtından parola hash’ini çıkar
+
 ## Canias Veri Giriş Tabloları
 
 - [x] Canias uyumlu altı tablo için boş veri giriş şablonlarını oluştur (SQL ilişkisel yapı + 4 doğrudan Excel giriş sayfası)

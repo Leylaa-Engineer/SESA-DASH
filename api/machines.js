@@ -7,7 +7,9 @@ function mapMachine(row) {
     ad: row.name,
     bolum_id: row.departmentId,
     bolum_ad: row.departmentName,
-    ekleyen_email: row.addedByEmail,
+    qr_kodu: row.qrCodeValue,
+    canias_varlik_no: row.caniasAssetNo,
+    ekleyen_kullanici_id: row.addedByUserId,
     aktif: Boolean(row.isActive),
     olusturulma_tarihi: row.createdAt,
   };
@@ -19,7 +21,8 @@ export default async function handler(req, res) {
       const code = typeof req.query?.code === 'string' ? req.query.code.trim().toUpperCase() : '';
       const [rows] = await getDb().query(
         `SELECT m.id, m.code, m.name, m.department_id AS departmentId, d.name AS departmentName,
-                m.added_by_email AS addedByEmail, m.is_active AS isActive, m.created_at AS createdAt
+                m.qr_code_value AS qrCodeValue, m.canias_asset_no AS caniasAssetNo,
+                m.added_by_user_id AS addedByUserId, m.is_active AS isActive, m.created_at AS createdAt
            FROM machines m JOIN departments d ON d.id = m.department_id
           WHERE m.is_active = TRUE ${code ? 'AND m.code = ?' : ''}
           ORDER BY m.name`,
@@ -36,13 +39,14 @@ export default async function handler(req, res) {
     const code = String(body.kod || `MKN-${Date.now().toString(36).toUpperCase()}`).trim().toUpperCase();
     const db = getDb();
     const [result] = await db.execute(
-      `INSERT INTO machines (code, name, department_id, added_by_email)
-       VALUES (?, ?, ?, ?)`,
-      [code, name, departmentId, user.email || null]
+      `INSERT INTO machines (code, name, department_id, qr_code_value, canias_asset_no, added_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [code, name, departmentId, body.qr_code_value || body.qrCodeValue || code, body.canias_asset_no || body.caniasAssetNo || null, user.sub]
     );
     const [rows] = await db.query(
       `SELECT m.id, m.code, m.name, m.department_id AS departmentId, d.name AS departmentName,
-              m.added_by_email AS addedByEmail, m.is_active AS isActive, m.created_at AS createdAt
+              m.qr_code_value AS qrCodeValue, m.canias_asset_no AS caniasAssetNo,
+              m.added_by_user_id AS addedByUserId, m.is_active AS isActive, m.created_at AS createdAt
          FROM machines m JOIN departments d ON d.id = m.department_id WHERE m.id = ?`,
       [result.insertId]
     );

@@ -22,7 +22,7 @@ sheets = [
         ('E-posta', 'email', 'Kurumsal e-posta adresi'),
         ('Rol', 'role', 'admin, operator, maintenance veya sorumlu'),
         ('İş Merkezi Kodu', 'department_id', 'Personelin bağlı olduğu Canias iş merkezi kodu'),
-        ('Firebase UID', 'firebase_uid', 'Firebase Auth hesabı oluşturulduktan sonra yazılır; ilk aşamada boş olabilir'),
+        ('Şifre Hash (Sistem)', 'password_hash', 'Elle yazılmaz; uygulama bcrypt hash üretir'),
         ('Aktif mi?', 'is_active', '1 = aktif, 0 = pasif'),
     ]),
     ('3_Makineler', 'MAKİNE VERİ GİRİŞİ', [

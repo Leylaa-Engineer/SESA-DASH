@@ -8,6 +8,7 @@ function mapIssue(row) {
     makine_ad: row.machineName,
     bolum_id: row.departmentId,
     bolum_ad: row.departmentName,
+    bildiren_sicil_no: row.reporterPersonnelNo,
     ekleyen_email: row.reporterEmail,
     aciklama: row.description,
     foto_url: row.photoUrl,
@@ -24,19 +25,20 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const tokenUser = await requireUser(req);
       const status = typeof req.query?.status === 'string' ? req.query.status : '';
-      const [profiles] = await db.query('SELECT role FROM users WHERE firebase_uid = ? OR email = ? LIMIT 1', [tokenUser.uid, tokenUser.email || '']);
+      const [profiles] = await db.query('SELECT role FROM users WHERE id = ? LIMIT 1', [tokenUser.sub]);
       const isAdmin = profiles[0]?.role === 'admin';
       const clauses = [];
       const params = [];
       if (status) { clauses.push('i.status = ?'); params.push(status); }
       if (!isAdmin) {
-        clauses.push('(i.reporter_email = ? OR m.added_by_email = ?)');
-        params.push(tokenUser.email || '', tokenUser.email || '');
+        clauses.push('(i.reporter_user_id = ? OR m.added_by_user_id = ?)');
+        params.push(tokenUser.sub, tokenUser.sub);
       }
       const [rows] = await db.query(
         `SELECT i.id, i.machine_id AS machineId, i.machine_code AS machineCode, i.machine_name AS machineName,
-                i.department_id AS departmentId, d.name AS departmentName, i.reporter_email AS reporterEmail,
-                i.description, i.photo_url AS photoUrl, i.status, i.resolved_at AS resolvedAt,
+                i.department_id AS departmentId, d.name AS departmentName,
+                i.reporter_user_id AS reporterUserId, i.reporter_personnel_no AS reporterPersonnelNo,
+                i.reporter_email AS reporterEmail, i.description, i.photo_url AS photoUrl, i.status, i.resolved_at AS resolvedAt,
                 i.resolved_by_user_id AS resolvedByUserId, i.created_at AS createdAt
            FROM issues i JOIN departments d ON d.id = i.department_id JOIN machines m ON m.id = i.machine_id
           ${clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''}
@@ -51,6 +53,9 @@ export default async function handler(req, res) {
     const machineId = Number(body.makine_id || body.machineId);
     const description = String(body.aciklama || body.description || '').trim();
     if (!Number.isInteger(machineId) || !description) return sendJson(res, 400, { error: 'Makine ve açıklama zorunludur' });
+    const [reporterRows] = await db.query('SELECT id, personnel_no AS personnelNo, email FROM users WHERE id = ? AND is_active = TRUE LIMIT 1', [user.sub]);
+    const reporter = reporterRows[0];
+    if (!reporter) return sendJson(res, 404, { error: 'Kullanıcı profili bulunamadı' });
     const [machineRows] = await db.query(
       `SELECT m.id, m.code, m.name, m.department_id AS departmentId, d.name AS departmentName
          FROM machines m JOIN departments d ON d.id = m.department_id
@@ -64,9 +69,9 @@ export default async function handler(req, res) {
       await connection.beginTransaction();
       const [result] = await connection.execute(
         `INSERT INTO issues
-          (machine_id, machine_code, machine_name, department_id, reporter_email, description, photo_url, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'Açık')`,
-        [machine.id, machine.code, machine.name, machine.departmentId, user.email || 'Bilinmiyor', description, body.foto_url || body.photoUrl || null]
+          (machine_id, machine_code, machine_name, department_id, reporter_user_id, reporter_personnel_no, reporter_email, description, photo_url, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Açık')`,
+        [machine.id, machine.code, machine.name, machine.departmentId, reporter.id, reporter.personnelNo, reporter.email, description, body.foto_url || body.photoUrl || null]
       );
       await connection.execute(
         `INSERT INTO issue_status_history (issue_id, status, changed_at) VALUES (?, 'Açık', UTC_TIMESTAMP(3))`,

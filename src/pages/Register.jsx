@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, Mail, KeyRound, Building2 } from 'lucide-react';
-import { auth } from '../firebase/config';
-import { mysqlApi } from '../api/client';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -17,6 +15,7 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { register } = useAuth();
 
   useEffect(() => {
     // Bölüm listesine "Yönetici" seçeneği eklendi
@@ -42,28 +41,18 @@ export default function Register() {
     setLoading(true);
 
     try {
-      // Firebase kimliğini oluştur; kayıt kodu ve rol doğrulaması MySQL API’de yapılır.
-      // 1. Firebase Auth ile kullanıcı oluştur
-      await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      await register({ name: formData.name, email: formData.email, password: formData.password, bolum_id: formData.bolum_id, adminCode: formData.adminCode });
 
-      // 3. Kullanıcı profilini MySQL’e kaydet
-      await mysqlApi.createUser({ name: formData.name, bolum_id: formData.bolum_id, adminCode: formData.adminCode });
-
-      // 4. Başarılı olunca dashboard’a yönlendir
       navigate('/dashboard');
 
     } catch (err) {
       console.error(err);
       if (err.message === 'Geçersiz kayıt kodu' || err.message === 'Geçersiz kayıt kodu!') {
         setError(err.message);
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError('Bu e-posta adresi zaten kullanılıyor.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('Şifre en az 6 karakter olmalıdır.');
-      } else if (err.code === 'auth/operation-not-allowed') {
-        setError('Hata: Firebase Authentication panelinden Email/Password girişi aktif edilmemiş!');
+      } else if (err.status === 409) {
+        setError('Bu e-posta veya personel kaydı zaten mevcut.');
       } else {
-        setError('Hata Kodu: ' + (err.code || 'Bilinmiyor') + ' | Mesaj: ' + err.message);
+        setError(err.message || 'Kayıt sırasında beklenmeyen bir hata oluştu.');
       }
     } finally {
       setLoading(false);

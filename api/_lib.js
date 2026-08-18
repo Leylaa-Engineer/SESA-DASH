@@ -1,9 +1,8 @@
 import mysql from 'mysql2/promise';
-import { cert, getApps, initializeApp } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 let pool;
-let firebaseAuth;
 
 export function getDb() {
   if (!process.env.DATABASE_URL) {
@@ -29,22 +28,40 @@ export function getDb() {
   return pool;
 }
 
-function getFirebaseAuth() {
-  if (firebaseAuth) return firebaseAuth;
-  if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
-    const error = new Error('Firebase Admin credentials are not configured');
+function getJwtSecret() {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    const error = new Error('JWT_SECRET must contain at least 32 characters');
     error.statusCode = 503;
     throw error;
   }
-  const app = getApps()[0] || initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    }),
-  });
-  firebaseAuth = getAuth(app);
-  return firebaseAuth;
+  return process.env.JWT_SECRET;
+}
+
+export function createAccessToken(user) {
+  return jwt.sign(
+    { sub: String(user.id), uid: String(user.id), email: user.email, role: user.role, fullName: user.full_name },
+    getJwtSecret(),
+    { expiresIn: process.env.JWT_EXPIRES_IN || '8h' },
+  );
+}
+
+export function verifyAccessToken(token) {
+  try {
+    return jwt.verify(token, getJwtSecret());
+  } catch (error) {
+    const authError = new Error('Invalid or expired access token');
+    authError.statusCode = 401;
+    authError.cause = error;
+    throw authError;
+  }
+}
+
+export function hashPassword(password) {
+  return bcrypt.hash(password, 12);
+}
+
+export function comparePassword(password, passwordHash) {
+  return bcrypt.compare(password, passwordHash);
 }
 
 export async function requireUser(req) {
@@ -54,11 +71,22 @@ export async function requireUser(req) {
     error.statusCode = 401;
     throw error;
   }
-  return getFirebaseAuth().verifyIdToken(authorization.slice(7));
+  return verifyAccessToken(authorization.slice(7));
+}
+
+export async function requireAdmin(req) {
+  const user = await requireUser(req);
+  if (user.role !== 'admin') {
+    const error = new Error('Administrator access required');
+    error.statusCode = 403;
+    throw error;
+  }
+  return user;
 }
 
 export function sendJson(res, status, body) {
-  res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.end(JSON.stringify(body));
 }
 
@@ -76,7 +104,7 @@ export function methodNotAllowed(res, methods) {
 
 export function handleApiError(res, error) {
   console.error('[SESA API]', error);
-  const status = error?.statusCode || (error?.code === 'auth/id-token-expired' || error?.code === 'auth/argument-error' ? 401 : 500);
+  const status = error?.statusCode || (error?.code === 'ER_DUP_ENTRY' ? 409 : 500);
   return sendJson(res, status, { error: status === 500 ? 'Internal server error' : error.message });
 }
 

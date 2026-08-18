@@ -23,9 +23,9 @@ Bu veri sözlüğü, SESA-DASH ile CaniasERP arasında ortak kullanılacak temel
 
 ### 2. Kullanıcılar / Personel
 
-| personnel_no | full_name | email | role | firebase_uid | is_active |
+| personnel_no | full_name | email | password_hash | role | is_active |
 |---|---|---|---|---|---|
-| Canias Personel Sicil No | Ad Soyad | Kurumsal e-posta | `admin` / `operator` / `maintenance` / `sorumlu` | Firebase Auth UID | 1 |
+| Canias Personel Sicil No | Ad Soyad | Kurumsal e-posta | Sunucuda bcrypt hash olarak üretilir | `admin` / `operator` / `maintenance` / `sorumlu` | 1 |
 
 ### 3. Personel–İş Merkezi Yetkileri
 

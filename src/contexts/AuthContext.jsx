@@ -1,7 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { auth } from '../firebase/config';
-import { mysqlApi } from '../api/client';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { mysqlApi, getAccessToken, setAccessToken } from '../api/client';
 
 const AuthContext = createContext();
 
@@ -11,56 +9,55 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
-  const [userRole, setUserRole] = useState(null); // 'sorumlu' veya 'admin'
+  const [userRole, setUserRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
 
-  function login(email, password) {
-    return signInWithEmailAndPassword(auth, email, password);
+  async function login(email, password) {
+    const result = await mysqlApi.login({ email, password });
+    setAccessToken(result.token);
+    setCurrentUser(result.user);
+    setUserRole(result.user?.role || result.user?.rol || null);
+    return result;
+  }
+
+  async function register(data) {
+    const result = await mysqlApi.register(data);
+    setAccessToken(result.token);
+    setCurrentUser(result.user);
+    setUserRole(result.user?.role || result.user?.rol || null);
+    return result;
   }
 
   function logout() {
-    return signOut(auth);
+    setAccessToken(null);
+    setCurrentUser(null);
+    setUserRole(null);
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (!user) {
+    const token = getAccessToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    setProfileLoading(true);
+    mysqlApi.me()
+      .then((profile) => {
+        setCurrentUser(profile);
+        setUserRole(profile.role || profile.rol || null);
+      })
+      .catch(() => {
+        setAccessToken(null);
         setCurrentUser(null);
         setUserRole(null);
+      })
+      .finally(() => {
         setProfileLoading(false);
         setLoading(false);
-        return;
-      }
-
-      // Temel kullanıcı bilgisini hemen yayınla; dashboard rol sorgusunu beklemeden açılabilir.
-      setCurrentUser(user);
-      setUserRole(null);
-      setProfileLoading(true);
-      setLoading(false);
-
-      // Rol bilgisi ve son giriş güncellemesi arka planda tamamlanır.
-      (async () => {
-        try {
-          const profile = await mysqlApi.me();
-          setUserRole(profile.rol || null);
-          setCurrentUser({ ...user, ...profile });
-        } catch (error) {
-          console.error('Rol bilgisi alınamadı', error);
-        } finally {
-          setProfileLoading(false);
-        }
-      })();
-    });
-
-    return unsubscribe;
+      });
   }, []);
 
-  const value = { currentUser, userRole, loading, profileLoading, login, logout };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+  const value = { currentUser, userRole, loading, profileLoading, login, register, logout };
+  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 }
