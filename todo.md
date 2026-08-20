@@ -104,4 +104,12 @@
 - [x] Gönderilen `schema.sql` dosyasını mevcut PHP API ve frontend alanlarıyla karşılaştır.
 - [x] Uyumlu tablo, ENUM, JSON, index ve karakter seti tanımlarını hazırla.
 - [x] Güncellenmiş SQL dosyasını sözdizimi ve alan eşleşmesi açısından doğrula.
-- [ ] Uyumlu SQL dosyasını kullanıcıya teslim et.
+- [x] Uyumlu SQL dosyasını kullanıcıya teslim et.
+
+## Kullanıcı İçin Host Kurulum Rehberi
+
+- [x] Plesk, phpMyAdmin ve FileZilla ön koşullarını açıkla.
+- [x] MySQL şema aktarımını ve App_Data/config.php hazırlığını anlat.
+- [x] dist, api ve App_Data dosyalarının /httpdocs/ içine yüklenmesini anlat.
+- [x] API, kayıt, giriş ve arıza akışı testlerini sırala.
+- [x] Kullanıcıya Türkçe adım adım kurulum rehberi teslim et.
