@@ -8,4 +8,7 @@ return [
     'user' => 'DB_KULLANICI_ADI',
     'pass' => 'DB_SIFRESI',
     'charset' => 'utf8mb4',
+    // Hostinge yükledikten sonra iki kodu mutlaka değiştir.
+    'admin_code' => 'YONETICI_KAYIT_KODU_DEGISTIR',
+    'responsible_code' => 'SORUMLU_KAYIT_KODU_DEGISTIR',
 ];

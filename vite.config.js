@@ -1,17 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import path from 'node:path'
 
 export default defineConfig({
   // Vercel uygulamayı alan adının kökünde yayınlar; varlıklar /sesa/ altından çağrılmamalıdır.
   base: '/',
-  resolve: {
-    alias: {
-      'firebase/auth': path.resolve(__dirname, 'src/firebase/auth.js'),
-      'firebase/firestore': path.resolve(__dirname, 'src/firebase/firestore.js'),
-    },
-  },
   server: {
     allowedHosts: true,
   },

@@ -61,6 +61,7 @@ function current_user() {
     $stmt = db()->prepare('SELECT * FROM users WHERE id = ? LIMIT 1'); $stmt->bind_param('s', $_SESSION['user_id']); $stmt->execute(); return $stmt->get_result()->fetch_assoc() ?: null;
 }
 function require_user() { $user = current_user(); if (!$user) fail('Oturum gerekli.', 401); return $user; }
+function require_admin() { $user=require_user(); if (($user['rol']??'')!=='admin') fail('Bu işlem için yönetici yetkisi gerekli.',403); return $user; }
 function find_rows($collection) {
     $table = collection_table($collection); if (!$table) fail('Geçersiz koleksiyon.');
     $mysqli = db();
@@ -84,11 +85,17 @@ function matches_filters($item, $filters) {
 function insert_document($collection, $id, $data) {
     $mysqli = db(); $id = $id ?: uuid();
     if ($collection === 'makineler') {
-        $stmt=$mysqli->prepare('INSERT INTO machines (id,kod,ad,bolum_id,bolum_ad,ekleyen_email,aktif) VALUES (?,?,?,?,?,?,1)'); $stmt->bind_param('ssssss',$id,$data['kod'],$data['ad'],$data['bolum_id'],$data['bolum_ad'],$data['ekleyen_email']);
+        $kod=$data['kod']??''; $ad=$data['ad']??''; $bolumId=$data['bolum_id']??null; $bolumAd=$data['bolum_ad']??null; $ekleyen=$data['ekleyen_email']??(current_user()['email']??null);
+        $stmt=$mysqli->prepare('INSERT INTO machines (id,kod,ad,bolum_id,bolum_ad,ekleyen_email,aktif) VALUES (?,?,?,?,?,?,1)'); $stmt->bind_param('ssssss',$id,$kod,$ad,$bolumId,$bolumAd,$ekleyen);
     } elseif ($collection === 'arizalar') {
-        $history=json_encode($data['durum_gecmisi'] ?? [],JSON_UNESCAPED_UNICODE); $stmt=$mysqli->prepare('INSERT INTO issues (id,makine_id,makine_kod,makine_ad,bolum_id,bolum_ad,ekleyen_email,sorumlu_email,email,aciklama,foto_url,durum,cozulme_tarihi,cozen_sorumlu_id,durum_gecmisi) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'); $null=null; $stmt->bind_param('sssssssssssssss',$id,$data['makine_id'],$data['makine_kod'],$data['makine_ad'],$data['bolum_id'],$data['bolum_ad'],$data['ekleyen_email'],$data['sorumlu_email'],$data['email'],$data['aciklama'],$data['foto_url'],$data['durum'],$null,$null,$history);
+        $machineId=$data['makine_id']??null; $machine=['kod'=>'','ad'=>'','bolum_id'=>null,'bolum_ad'=>null];
+        if ($machineId) { $machineStmt=$mysqli->prepare('SELECT kod,ad,bolum_id,bolum_ad FROM machines WHERE id=? LIMIT 1'); $machineStmt->bind_param('s',$machineId); $machineStmt->execute(); $machine=$machineStmt->get_result()->fetch_assoc() ?: $machine; }
+        if (!$machine['kod']) fail('Makine bulunamadı.',404);
+        $user=require_user(); $mysqli->query("UPDATE issues SET durum='Çözüldü', cozulme_tarihi=NOW(), updated_at=NOW() WHERE makine_id='".$mysqli->real_escape_string($machineId)."' AND durum IN ('Açık','İşlemde')"); $history=json_encode([['durum'=>'Açık','tarih'=>date(DATE_ATOM)]],JSON_UNESCAPED_UNICODE); $empty=null; $email=$user['email']??null; $status='Açık'; $description=trim($data['aciklama']??'');
+        if (!$description) fail('Arıza açıklaması zorunludur.');
+        $photo=$data['foto_url']??null; $machineCode=$machine['kod']; $machineName=$machine['ad']; $machineDepartment=$machine['bolum_id']; $machineDepartmentName=$machine['bolum_ad']; $stmt=$mysqli->prepare('INSERT INTO issues (id,makine_id,makine_kod,makine_ad,bolum_id,bolum_ad,ekleyen_email,sorumlu_email,email,aciklama,foto_url,durum,cozulme_tarihi,cozen_sorumlu_id,durum_gecmisi) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'); $stmt->bind_param('sssssssssssssss',$id,$machineId,$machineCode,$machineName,$machineDepartment,$machineDepartmentName,$email,$empty,$email,$description,$photo,$status,$empty,$empty,$history);
     } elseif ($collection === 'sorumlular' || $collection === 'yoneticiler') {
-        $role=$collection==='yoneticiler'?'admin':'sorumlu'; $json=json_encode($data['bolum_idler'] ?? [],JSON_UNESCAPED_UNICODE); $hash=$data['password_hash'] ?? password_hash($data['password'] ?? bin2hex(random_bytes(8)),PASSWORD_DEFAULT); $stmt=$mysqli->prepare('INSERT INTO users (id,email,password_hash,ad_soyad,telefon,rol,bolum_idler,bolum_id,aktif) VALUES (?,?,?,?,?,?,?,?,1)'); $stmt->bind_param('sssssssss',$id,$data['email'],$hash,$data['ad_soyad'],$data['telefon'],$role,$json,$data['bolum_id']);
+        $role=$collection==='yoneticiler'?'admin':'sorumlu'; $json=json_encode($data['bolum_idler'] ?? [],JSON_UNESCAPED_UNICODE); $hash=$data['password_hash'] ?? password_hash($data['password'] ?? bin2hex(random_bytes(8)),PASSWORD_DEFAULT); $userEmail=$data['email']??''; $userName=$data['ad_soyad']??''; $phone=$data['telefon']??null; $department=$data['bolum_id']??null; $stmt=$mysqli->prepare('INSERT INTO users (id,email,password_hash,ad_soyad,telefon,rol,bolum_idler,bolum_id,aktif) VALUES (?,?,?,?,?,?,?,?,1)'); $stmt->bind_param('sssssssss',$id,$userEmail,$hash,$userName,$phone,$role,$json,$department);
     } elseif ($collection === 'bolumler') {
         $stmt=$mysqli->prepare('INSERT INTO departments (id,ad,aktif) VALUES (?,?,1)'); $stmt->bind_param('ss',$id,$data['ad']);
     } else fail('Bu koleksiyona kayıt eklenemez.');
@@ -101,12 +108,19 @@ function update_document($collection, $id, $data) {
 $action=$_GET['action'] ?? ''; $payload=input();
 if ($action==='session') { $user=current_user(); respond(['user'=>public_user($user)]); }
 if ($action==='login') { $email=trim($payload['email']??''); $password=$payload['password']??''; $stmt=db()->prepare('SELECT * FROM users WHERE email = ? AND aktif = 1 LIMIT 1'); $stmt->bind_param('s',$email); $stmt->execute(); $user=$stmt->get_result()->fetch_assoc(); if(!$user || !password_verify($password,$user['password_hash'])) fail('E-posta veya şifre hatalı.',401); $_SESSION['user_id']=$user['id']; db()->query("UPDATE users SET son_giris_tarihi=NOW() WHERE id='".db()->real_escape_string($user['id'])."'"); respond(['user'=>public_user($user)]); }
-if ($action==='register') { $email=trim($payload['email']??''); if(!$email || strlen($payload['password']??'')<6) fail('Geçerli bir e-posta ve en az 6 karakterli şifre gerekli.'); $id=insert_document('sorumlular',null,['email'=>$email,'password'=>$payload['password'],'ad_soyad'=>'','telefon'=>'','bolum_idler'=>[],'bolum_id'=>'']); $_SESSION['user_id']=$id; $stmt=db()->prepare('SELECT * FROM users WHERE id=?'); $stmt->bind_param('s',$id); $stmt->execute(); respond(['user'=>public_user($stmt->get_result()->fetch_assoc())]); }
+if ($action==='register') {
+    $email=trim($payload['email']??''); $password=$payload['password']??''; $name=trim($payload['name']??''); $department=$payload['bolum_id']??''; $code=$payload['adminCode']??'';
+    if(!$email || strlen($password)<6 || !$name || !$department) fail('Ad, bölüm, e-posta, şifre ve kayıt kodu zorunludur.');
+    $configPath=dirname(__DIR__).'/App_Data/config.php'; if(!is_file($configPath)) fail('Kayıt kodları yapılandırılmamış.',500); $config=require $configPath;
+    $isAdmin=$department==='yonetici'; $expected=$isAdmin ? ($config['admin_code']??'') : ($config['responsible_code']??'');
+    if(!$expected || !hash_equals((string)$expected,(string)$code)) fail('Geçersiz kayıt kodu',403);
+    $collection=$isAdmin?'yoneticiler':'sorumlular'; $id=insert_document($collection,null,['email'=>$email,'password'=>$password,'ad_soyad'=>$name,'telefon'=>'','bolum_idler'=>$isAdmin?[]:[$department],'bolum_id'=>$department]); $_SESSION['user_id']=$id; $stmt=db()->prepare('SELECT * FROM users WHERE id=?'); $stmt->bind_param('s',$id); $stmt->execute(); respond(['user'=>public_user($stmt->get_result()->fetch_assoc())]);
+}
 if ($action==='logout') { $_SESSION=[]; session_destroy(); respond(['ok'=>true]); }
-if ($action==='list') { $items=find_rows($payload['collection']??''); $items=array_values(array_filter($items,fn($item)=>matches_filters($item,$payload['filters']??[]))); respond(['items'=>$items]); }
-if ($action==='get') { $collection=$payload['collection']??''; $id=$payload['id']??''; $items=find_rows($collection); foreach($items as $item) if(($item['id']??'')===$id) respond(['item'=>$item]); respond(['item'=>null]); }
-if ($action==='create') { $id=insert_document($payload['collection']??'',null,$payload['data']??[]); respond(['id'=>$id]); }
-if ($action==='set') { $collection=$payload['collection']??''; $id=$payload['id']??uuid(); $items=find_rows($collection); $exists=false; foreach($items as $item) if(($item['id']??'')===$id) $exists=true; if($exists) update_document($collection,$id,$payload['data']??[]); else insert_document($collection,$id,$payload['data']??[]); respond(['ok'=>true]); }
-if ($action==='update') { update_document($payload['collection']??'', $payload['id']??'', $payload['data']??[]); respond(['ok'=>true]); }
-if ($action==='delete') { $table=collection_table($payload['collection']??''); if(!$table) fail('Geçersiz koleksiyon.'); $stmt=db()->prepare("DELETE FROM `$table` WHERE id=?"); $stmt->bind_param('s',$payload['id']); if(!$stmt->execute()) fail('Kayıt silinemedi.',500); respond(['ok'=>true]); }
+if ($action==='list') { $collection=$payload['collection']??''; if ($collection!=='makineler') require_user(); $items=find_rows($collection); $items=array_values(array_filter($items,fn($item)=>matches_filters($item,$payload['filters']??[]))); respond(['items'=>$items]); }
+if ($action==='get') { require_user(); $collection=$payload['collection']??''; $id=$payload['id']??''; $items=find_rows($collection); foreach($items as $item) if(($item['id']??'')===$id) respond(['item'=>$item]); respond(['item'=>null]); }
+if ($action==='create') { $collection=$payload['collection']??''; if ($collection!=='arizalar') require_admin(); $id=insert_document($collection,null,$payload['data']??[]); respond(['id'=>$id]); }
+if ($action==='set') { require_admin(); $collection=$payload['collection']??''; $id=$payload['id']??uuid(); $items=find_rows($collection); $exists=false; foreach($items as $item) if(($item['id']??'')===$id) $exists=true; if($exists) update_document($collection,$id,$payload['data']??[]); else insert_document($collection,$id,$payload['data']??[]); respond(['ok'=>true]); }
+if ($action==='update') { $collection=$payload['collection']??''; if ($collection==='arizalar') require_user(); else require_admin(); update_document($collection, $payload['id']??'', $payload['data']??[]); respond(['ok'=>true]); }
+if ($action==='delete') { require_admin(); $table=collection_table($payload['collection']??''); if(!$table) fail('Geçersiz koleksiyon.'); $deleteId=$payload['id']??''; $stmt=db()->prepare("DELETE FROM `$table` WHERE id=?"); $stmt->bind_param('s',$deleteId); if(!$stmt->execute()) fail('Kayıt silinemedi.',500); respond(['ok'=>true]); }
 fail('Geçersiz API isteği.',404);

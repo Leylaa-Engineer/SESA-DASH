@@ -1,16 +1,53 @@
-# React + Vite
+# SESA Operasyon Takip Sistemi
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+SESA, saha ekiplerinin QR kod veya makine koduyla arıza bildirimi oluşturduğu ve sorumluların arızaları takip ettiği React + PHP + MySQL uygulamasıdır.
 
-Currently, two official plugins are available:
+## Teknoloji
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Frontend production build’i Vite ile oluşturulur ve IIS/Plesk yayın köküne yüklenir. Backend `api/index.php` üzerinden PHP ile çalışır. Veriler MySQL’de tutulur; tarayıcı MySQL’e doğrudan bağlanmaz.
 
-## React Compiler
+## Yerel build
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run build
+npm run lint
+```
 
-## Expanding the Oxlint configuration
+Yayınlanacak dosyalar `dist/` klasörünün içindedir. `dist` klasörünün kendisini değil, içindeki dosyaları hosting yayın köküne yükle.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Hosting yapısı
+
+```text
+/httpdocs/
+├── index.html
+├── assets/
+├── api/index.php
+├── App_Data/config.php
+├── App_Data/web.config
+├── manifest.webmanifest
+├── sw.js
+└── web.config
+```
+
+## MySQL kurulumu
+
+`database/mysql_schema.sql` dosyasını phpMyAdmin’e aktar. `App_Data/config.example.php` dosyasını `config.php` adıyla kopyala ve gerçek MySQL host, veritabanı, kullanıcı ve şifre bilgilerini gir. Gerçek `config.php` dosyası GitHub’a gönderilmemelidir; `.gitignore` içinde korunur.
+
+Ayrıntılı FileZilla ve phpMyAdmin adımları için [`HOSTING_KURULUM_TR.md`](./HOSTING_KURULUM_TR.md) dosyasına bak.
+
+## API kontrolü
+
+Kurulumdan sonra aşağıdaki adres JSON yanıtı vermelidir:
+
+```text
+https://alan-adin.com/api/index.php?action=session
+```
+
+Beklenen ilk yanıt:
+
+```json
+{"user":null}
+```
+
+Bu proje sürümünde Firebase, Vercel Functions, Node.js API ve GitHub Pages yayın ayarları kullanılmaz. Hosting ortamı PHP ve MySQL desteklemelidir.

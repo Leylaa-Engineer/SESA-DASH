@@ -16,6 +16,8 @@ return [
     'user' => 'GERCEK_DB_KULLANICISI',
     'pass' => 'GERCEK_DB_SIFRESI',
     'charset' => 'utf8mb4',
+    'admin_code' => 'SADECE_YONETICIYE_VERILECEK_GIZLI_KOD',
+    'responsible_code' => 'SORUMLU_KAYIT_GIZLI_KODU',
 ];
 ```
 
@@ -65,7 +67,9 @@ VITE_API_BASE=https://bakim.sesait.com/api/index.php
 
 ## 6. İlk admin ve sorumlu kaydı
 
-İlk kullanıcıyı uygulamadaki kayıt ekranından oluştur. Kayıt ekranının kullandığı admin/kayıt kodu için `ayarlar` tablosunda gereken kayıt yoksa önce phpMyAdmin üzerinden ayar kaydı eklenmelidir. Gerekirse ilk admin kullanıcısı doğrudan `users` tablosuna güvenli bir PHP bakım scriptiyle eklenmelidir; şifreyi düz metin olarak veritabanına yazma.
+İlk hesabı uygulamadaki kayıt ekranından oluştur. `Yönetici` bölümünü seçerken `admin_code`, diğer bölümlerden birini seçerken `responsible_code` değerini kullan. Bu iki kod `App_Data/config.php` içinde tutulur; `ayarlar` tablosuna ayrıca kayıt eklemek gerekmez. Kayıt ekranında yönetici hesabıyla giriş yaptıktan sonra makine kayıtlarını ekle.
+
+QR/makine kodu ile arıza bildirimi için saha kullanıcısının önceden giriş yapması gerekmez. Yeni bir makine arızası açıldığında aynı makineye ait önceki `Açık` veya `İşlemde` kayıtlar otomatik olarak `Çözüldü` durumuna alınır.
 
 ## 7. Önemli güvenlik kuralları
 

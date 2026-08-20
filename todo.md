@@ -89,3 +89,12 @@
 - [x] Canias uyumlu altı tablo için boş veri giriş şablonlarını oluştur (SQL ilişkisel yapı + 4 doğrudan Excel giriş sayfası)
 - [x] Yöneticiye tablo ilişkilerini ve doldurma sırasını açıklayan veri sözlüğü hazırla
 - [x] Şablon dosyasını doğrula ve GitHub’a gönder
+
+## Temiz PHP + MySQL Proje Sürümü
+
+- [ ] Firebase ve eski deneme bağımlılıklarını temizle.
+- [ ] Tek hosting uyumlu frontend + PHP API + MySQL yapısını bırak.
+- [ ] MySQL şeması, güvenli config örneği ve kurulum rehberini düzenle.
+- [ ] Temiz build ve dağıtım paketini üret.
+- [ ] PHP sözdizimi, API sözleşmesi ve frontend build kontrollerini çalıştır.
+- [ ] Temiz sürümü GitHub’a gönder.

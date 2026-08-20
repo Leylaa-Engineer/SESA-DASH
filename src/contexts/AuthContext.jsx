@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { mysqlApi, getAccessToken, setAccessToken } from '../api/client';
+import { mysqlApi, setAccessToken } from '../api/client';
 
 const AuthContext = createContext();
 
@@ -15,7 +15,6 @@ export function AuthProvider({ children }) {
 
   async function login(email, password) {
     const result = await mysqlApi.login({ email, password });
-    setAccessToken(result.token);
     setCurrentUser(result.user);
     setUserRole(result.user?.role || result.user?.rol || null);
     return result;
@@ -23,32 +22,26 @@ export function AuthProvider({ children }) {
 
   async function register(data) {
     const result = await mysqlApi.register(data);
-    setAccessToken(result.token);
     setCurrentUser(result.user);
     setUserRole(result.user?.role || result.user?.rol || null);
     return result;
   }
 
-  function logout() {
+  async function logout() {
+    await mysqlApi.logout().catch(() => {});
     setAccessToken(null);
     setCurrentUser(null);
     setUserRole(null);
   }
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
     setProfileLoading(true);
     mysqlApi.me()
       .then((profile) => {
-        setCurrentUser(profile);
-        setUserRole(profile.role || profile.rol || null);
+        setCurrentUser(profile || null);
+        setUserRole(profile?.role || profile?.rol || null);
       })
       .catch(() => {
-        setAccessToken(null);
         setCurrentUser(null);
         setUserRole(null);
       })
