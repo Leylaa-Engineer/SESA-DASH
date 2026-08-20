@@ -98,3 +98,10 @@
 - [ ] Temiz build ve dağıtım paketini üret.
 - [ ] PHP sözdizimi, API sözleşmesi ve frontend build kontrollerini çalıştır.
 - [ ] Temiz sürümü GitHub’a gönder.
+
+## Kullanıcının Gönderdiği schema.sql Uyarlaması
+
+- [x] Gönderilen `schema.sql` dosyasını mevcut PHP API ve frontend alanlarıyla karşılaştır.
+- [x] Uyumlu tablo, ENUM, JSON, index ve karakter seti tanımlarını hazırla.
+- [x] Güncellenmiş SQL dosyasını sözdizimi ve alan eşleşmesi açısından doğrula.
+- [ ] Uyumlu SQL dosyasını kullanıcıya teslim et.
