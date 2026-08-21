@@ -35,7 +35,7 @@ export default function ScanQR() {
             const machineCode = extractMachineCode(decodedText);
             navigate(`/machine/${machineCode}`);
           },
-          (err) => {}
+          () => {}
         );
       } catch (err) {
         console.error("Kamera baslatilmadi:", err);

@@ -22,4 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+<<<<<<< HEAD
 .vercel
+=======
+
+# Hosting secrets
+App_Data/config.php
+>>>>>>> 6d1c30d935c3d5600455716a2695e91e2dcc9954

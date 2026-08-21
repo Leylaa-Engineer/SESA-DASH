@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { useState, useEffect } from 'react';
+=======
+import { useEffect, useState } from 'react';
+>>>>>>> 6d1c30d935c3d5600455716a2695e91e2dcc9954
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, CheckCircle2, ChevronRight, ClipboardList, SlidersHorizontal, UserCheck, Wrench } from 'lucide-react';
 import { mysqlApi } from '../api/client';

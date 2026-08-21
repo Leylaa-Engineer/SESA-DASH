@@ -1,4 +1,8 @@
 import { createContext, useContext, useEffect, useState } from 'react';
+<<<<<<< HEAD
+=======
+import { mysqlApi, setAccessToken } from '../api/client';
+>>>>>>> 6d1c30d935c3d5600455716a2695e91e2dcc9954
 
 const AuthContext = createContext();
 
@@ -23,6 +27,7 @@ export function AuthProvider({ children }) {
   const getAccessToken = () => localStorage.getItem('access_token');
 
   async function login(email, password) {
+<<<<<<< HEAD
     const res = await fetch('/api/index.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -38,10 +43,16 @@ export function AuthProvider({ children }) {
     setAccessToken(result.token || 'demo-token');
     setCurrentUser(userData);
     setUserRole(userData.role || userData.rol || 'admin');
+=======
+    const result = await mysqlApi.login({ email, password });
+    setCurrentUser(result.user);
+    setUserRole(result.user?.role || result.user?.rol || null);
+>>>>>>> 6d1c30d935c3d5600455716a2695e91e2dcc9954
     return result;
   }
 
   async function register(data) {
+<<<<<<< HEAD
     const res = await fetch('/api/index.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -56,22 +67,24 @@ export function AuthProvider({ children }) {
     setAccessToken(result.token || 'demo-token');
     setCurrentUser(userData);
     setUserRole(userData.role || userData.rol || 'admin');
+=======
+    const result = await mysqlApi.register(data);
+    setCurrentUser(result.user);
+    setUserRole(result.user?.role || result.user?.rol || null);
+>>>>>>> 6d1c30d935c3d5600455716a2695e91e2dcc9954
     return result;
   }
 
-  function logout() {
+  async function logout() {
+    await mysqlApi.logout().catch(() => {});
     setAccessToken(null);
     setCurrentUser(null);
     setUserRole(null);
   }
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
     setProfileLoading(true);
+<<<<<<< HEAD
 
     fetch('/api/index.php', {
       method: 'POST',
@@ -90,6 +103,16 @@ export function AuthProvider({ children }) {
         } else {
           logout();
         }
+=======
+    mysqlApi.me()
+      .then((profile) => {
+        setCurrentUser(profile || null);
+        setUserRole(profile?.role || profile?.rol || null);
+      })
+      .catch(() => {
+        setCurrentUser(null);
+        setUserRole(null);
+>>>>>>> 6d1c30d935c3d5600455716a2695e91e2dcc9954
       })
       .catch(() => logout())
       .finally(() => {
