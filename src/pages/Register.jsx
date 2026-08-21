@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Mail, KeyRound, Building2 } from 'lucide-react';
+import { User, Lock, Mail, KeyRound, Building2, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Register() {
@@ -9,7 +9,8 @@ export default function Register() {
     email: '',
     password: '',
     adminCode: '',
-    bolum_id: ''
+    bolum_id: '',
+    role: 'operator'
   });
   const [bolumler, setBolumler] = useState([]);
   const [error, setError] = useState('');
@@ -18,9 +19,7 @@ export default function Register() {
   const { register } = useAuth();
 
   useEffect(() => {
-    // Bölüm listesine "Yönetici" seçeneği eklendi
     const sesaBolumleri = [
-      { id: 'yonetici', ad: 'Yönetici' },
       { id: 'baski', ad: 'Baskı (Flekso)' },
       { id: 'laminasyon', ad: 'Laminasyon' },
       { id: 'kurlenme', ad: 'Kürlenme' },
@@ -32,7 +31,12 @@ export default function Register() {
   }, []);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const nextValue = e.target.value;
+    setFormData({
+      ...formData,
+      [e.target.name]: nextValue,
+      ...(e.target.name === 'role' && nextValue === 'admin' ? { bolum_id: '' } : {}),
+    });
   };
 
   const handleRegister = async (e) => {
@@ -41,7 +45,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      await register({ name: formData.name, email: formData.email, password: formData.password, bolum_id: formData.bolum_id, adminCode: formData.adminCode });
+      await register({ name: formData.name, email: formData.email, password: formData.password, bolum_id: formData.bolum_id, role: formData.role, adminCode: formData.adminCode });
 
       navigate('/dashboard');
 
@@ -63,7 +67,7 @@ export default function Register() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
       
       <div className="card" style={{ marginTop: '1rem', marginBottom: '2rem' }}>
-        <h2 className="mb-3 text-center" style={{ fontSize: '1.4rem' }}>Sorumlu Kaydı</h2>
+        <h2 className="mb-3 text-center" style={{ fontSize: '1.4rem' }}>Yeni Kullanıcı Kaydı</h2>
         
         {error && <div style={{ color: 'var(--color-status-open)', marginBottom: '1rem', textAlign: 'center', backgroundColor: '#FFEBEE', padding: '0.5rem', borderRadius: '4px' }}>{error}</div>}
 
@@ -81,6 +85,23 @@ export default function Register() {
                 style={{ border: 'none', outline: 'none', flex: 1, fontSize: '1rem', backgroundColor: 'transparent', padding: '0.5rem 0' }}
                 required
               />
+            </div>
+          </div>
+
+          <div className="input-group">
+            <div className="flex items-center" style={{ backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: 'var(--border-radius)', padding: '0.5rem 1rem' }}>
+              <ShieldCheck size={20} color="var(--color-text-muted)" style={{ marginRight: '0.8rem' }} />
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                style={{ border: 'none', outline: 'none', flex: 1, fontSize: '1rem', backgroundColor: 'transparent', padding: '0.5rem 0' }}
+                required
+              >
+                <option value="operator">Düz kullanıcı</option>
+                <option value="sorumlu">Bölüm sorumlusu</option>
+                <option value="admin">Yönetici</option>
+              </select>
             </div>
           </div>
 
@@ -114,7 +135,7 @@ export default function Register() {
             </div>
           </div>
 
-          <div className="input-group">
+          {formData.role !== 'admin' && <div className="input-group">
             <div className="flex items-center" style={{ backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: 'var(--border-radius)', padding: '0.5rem 1rem' }}>
               <Building2 size={20} color="var(--color-text-muted)" style={{ marginRight: '0.8rem' }} />
               <select
@@ -122,7 +143,7 @@ export default function Register() {
                 value={formData.bolum_id}
                 onChange={handleChange}
                 style={{ border: 'none', outline: 'none', flex: 1, fontSize: '1rem', backgroundColor: 'transparent', padding: '0.5rem 0', color: formData.bolum_id ? 'var(--color-text)' : 'var(--color-text-muted)' }}
-                required
+                required={formData.role !== 'admin'}
               >
                 <option value="" disabled>Bölüm veya Rol Seçin</option>
                 {bolumler.map(b => (
@@ -130,9 +151,9 @@ export default function Register() {
                 ))}
               </select>
             </div>
-          </div>
+          </div>}
 
-          <div className="input-group mb-3">
+          {formData.role !== 'operator' && <div className="input-group mb-3">
             <div className="flex items-center" style={{ backgroundColor: '#fff', border: '1px solid var(--color-primary)', borderRadius: 'var(--border-radius)', padding: '0.5rem 1rem' }}>
               <KeyRound size={20} color="var(--color-primary)" style={{ marginRight: '0.8rem' }} />
               <input
@@ -146,7 +167,7 @@ export default function Register() {
               />
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.5rem', textAlign: 'center' }}>Sistem yöneticisinden aldığınız kodu girin.</p>
-          </div>
+          </div>}
           
           <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
             {loading ? 'Kayıt Yapılıyor...' : 'Kayıt Ol ve Giriş Yap'}

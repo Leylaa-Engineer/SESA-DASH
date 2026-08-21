@@ -1,6 +1,6 @@
 import { Navigate, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ClipboardList, LayoutDashboard, LogOut, Settings, Users, Wrench } from 'lucide-react';
+import { ClipboardList, LayoutDashboard, LogOut, QrCode, Settings, Users, Wrench } from 'lucide-react';
 
 export default function ProtectedRoute({ children }) {
   const { currentUser, userRole, loading, profileLoading, logout } = useAuth();
@@ -8,7 +8,13 @@ export default function ProtectedRoute({ children }) {
   const navigate = useNavigate();
 
   if (loading || (currentUser && profileLoading)) {
-    return <div className="app-container"><main className="main-content route-loading" aria-live="polite">Oturum ve yetkili bilgileri hazırlanıyor…</main></div>;
+    return (
+      <div className="app-container">
+        <main className="main-content route-loading" aria-live="polite">
+          Oturum ve yetkili bilgileri hazırlanıyor…
+        </main>
+      </div>
+    );
   }
 
   if (!currentUser) return <Navigate to="/login" replace />;
@@ -19,6 +25,7 @@ export default function ProtectedRoute({ children }) {
   };
 
   const links = [
+    { to: '/', label: 'Arıza Bildir', icon: QrCode },
     { to: '/dashboard', label: 'Merkez', icon: LayoutDashboard },
     { to: '/issues', label: 'Arızalar', icon: ClipboardList },
     { to: '/machines', label: 'Makineler', icon: Wrench },
@@ -31,11 +38,24 @@ export default function ProtectedRoute({ children }) {
       <header className="header">
         <Link to="/dashboard" className="brand" aria-label="SESA operasyon merkezi">
           <span className="brand-mark"><Wrench size={18} strokeWidth={2.4} /></span>
-          <span><span className="header-logo">SESA<span>®</span></span><span className="header-subtitle">Operasyon Merkezi</span></span>
+          <span>
+            <span className="header-logo">SESA<span>®</span></span>
+            <span className="header-subtitle">Operasyon Merkezi</span>
+          </span>
         </Link>
         <nav className="header-nav" aria-label="Yönetim navigasyonu">
-          {links.map(({ to, label, icon: Icon }) => <Link key={to} to={to} className={`header-nav-item ${location.pathname === to ? 'active' : ''}`}><Icon size={16} />{label}</Link>)}
-          <button type="button" className="header-nav-item" onClick={signOut} title="Çıkış yap"><LogOut size={16} />Çıkış</button>
+          {links.map(({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              className={`header-nav-item ${location.pathname === to ? 'active' : ''}`}
+            >
+              <Icon size={16} />{label}
+            </Link>
+          ))}
+          <button type="button" className="header-nav-item" onClick={signOut} title="Çıkış yap">
+            <LogOut size={16} />Çıkış
+          </button>
         </nav>
       </header>
       <main className="main-content">{children || <Outlet />}</main>

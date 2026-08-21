@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ImagePlus, Info, Send, Trash2, Wrench } from 'lucide-react';
 import { mysqlApi } from '../api/client';
+import { sendIssueEmail } from '../utils/emailService';
 
 export default function MachineInfo() {
   const { code } = useParams();
@@ -62,6 +63,14 @@ export default function MachineInfo() {
     };
     try {
       await mysqlApi.createIssue(issueData);
+      if (machine.sorumlu_email) {
+        await sendIssueEmail({
+          makine_ad: machine.ad,
+          makine_kod: machine.kod,
+          bolum_ad: machine.bolum_ad,
+          aciklama: issueData.aciklama,
+        }, machine.sorumlu_email);
+      }
       navigate('/success');
     } catch (err) {
       console.error('Arıza kaydedilirken hata:', err);

@@ -3,14 +3,23 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  // Vercel uygulamayı alan adının kökünde yayınlar; varlıklar /sesa/ altından çağrılmamalıdır.
-  base: '/',
+  base: './', // <-- IIS üzerinde asset'lerin doğru yüklenmesi için göreceli yola çevirdik
   server: {
     allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   plugins: [
     react(),
     VitePWA({
+      devOptions: {
+        enabled: false,
+      },
       registerType: 'autoUpdate',
       manifest: {
         name: 'SESA Arıza Takip Sistemi',
@@ -19,8 +28,8 @@ export default defineConfig({
         theme_color: '#070B14',
         background_color: '#070B14',
         display: 'standalone',
-        start_url: '/',
-        scope: '/',
+        start_url: './', // <-- PWA başlangıç yolunu göreceli yaptk
+        scope: './',     // <-- PWA kapsamını göreceli yaptık
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -38,6 +47,7 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
+        navigateFallbackDenylist: [/^\/api/],
       }
     })
   ],

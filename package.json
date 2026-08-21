@@ -16,6 +16,8 @@
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
     "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "html5-qrcode": "^2.3.8",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.31.0",

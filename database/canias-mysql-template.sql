@@ -141,7 +141,7 @@ CREATE TABLE IF NOT EXISTS issues (
   department_id VARCHAR(64) NOT NULL,
   reporter_user_id BIGINT UNSIGNED NULL,
   reporter_personnel_no VARCHAR(50) NULL COMMENT 'Olay anındaki Canias Personel Sicil No',
-  reporter_email VARCHAR(254) NOT NULL,
+  reporter_email VARCHAR(254) NULL,
   malfunction_type VARCHAR(80) NULL COMMENT 'Arıza türü veya bakım türü',
   priority ENUM('low', 'normal', 'high', 'critical') NOT NULL DEFAULT 'normal',
   description TEXT NOT NULL,

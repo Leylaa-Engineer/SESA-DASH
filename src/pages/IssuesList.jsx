@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, CheckCircle2, ChevronRight, ClipboardList, SlidersHorizontal, UserCheck, Wrench } from 'lucide-react';
 import { mysqlApi } from '../api/client';
@@ -47,7 +48,9 @@ export default function IssuesList() {
 
   useEffect(() => {
     if (!isAdmin) return;
-    mysqlApi.users().then(setSorumlular).catch(console.error);
+    mysqlApi.users()
+      .then((users) => setSorumlular(users.filter((user) => user.rol === 'admin' || user.rol === 'sorumlu')))
+      .catch(console.error);
   }, [isAdmin]);
 
   useEffect(() => {

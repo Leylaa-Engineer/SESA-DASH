@@ -67,11 +67,18 @@ export function comparePassword(password, passwordHash) {
 export async function requireUser(req) {
   const authorization = req.headers.authorization || '';
   if (!authorization.startsWith('Bearer ')) {
-    const error = new Error('Authentication required');
+    const error = new Error('Authorization header missing or invalid:', authorization, "Request URL:", req.url);
+    //const error = new Error('Authentication required');
     error.statusCode = 401;
     throw error;
   }
   return verifyAccessToken(authorization.slice(7));
+}
+
+export async function optionalUser(req) {
+  const authorization = req.headers.authorization || '';
+  if (!authorization) return null;
+  return requireUser(req);
 }
 
 export async function requireAdmin(req) {

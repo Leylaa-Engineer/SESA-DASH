@@ -1,4 +1,4 @@
-import { getDb, handleApiError, methodNotAllowed, readJson, requireUser, sendJson } from './_lib.js';
+import { getDb, handleApiError, methodNotAllowed, optionalUser, readJson, requireUser, sendJson } from './_lib.js';
 
 function mapIssue(row) {
   return {
@@ -48,14 +48,17 @@ export default async function handler(req, res) {
       return sendJson(res, 200, rows.map(mapIssue));
     }
     if (req.method !== 'POST') return methodNotAllowed(res, ['GET', 'POST']);
-    const user = await requireUser(req);
+    const user = await optionalUser(req);
     const body = await readJson(req);
     const machineId = Number(body.makine_id || body.machineId);
     const description = String(body.aciklama || body.description || '').trim();
     if (!Number.isInteger(machineId) || !description) return sendJson(res, 400, { error: 'Makine ve açıklama zorunludur' });
-    const [reporterRows] = await db.query('SELECT id, personnel_no AS personnelNo, email FROM users WHERE id = ? AND is_active = TRUE LIMIT 1', [user.sub]);
-    const reporter = reporterRows[0];
-    if (!reporter) return sendJson(res, 404, { error: 'Kullanıcı profili bulunamadı' });
+    let reporter = null;
+    if (user) {
+      const [reporterRows] = await db.query('SELECT id, personnel_no AS personnelNo, email FROM users WHERE id = ? AND is_active = TRUE LIMIT 1', [user.sub]);
+      reporter = reporterRows[0];
+      if (!reporter) return sendJson(res, 404, { error: 'Kullanıcı profili bulunamadı' });
+    }
     const [machineRows] = await db.query(
       `SELECT m.id, m.code, m.name, m.department_id AS departmentId, d.name AS departmentName
          FROM machines m JOIN departments d ON d.id = m.department_id
@@ -71,7 +74,7 @@ export default async function handler(req, res) {
         `INSERT INTO issues
           (machine_id, machine_code, machine_name, department_id, reporter_user_id, reporter_personnel_no, reporter_email, description, photo_url, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Açık')`,
-        [machine.id, machine.code, machine.name, machine.departmentId, reporter.id, reporter.personnelNo, reporter.email, description, body.foto_url || body.photoUrl || null]
+        [machine.id, machine.code, machine.name, machine.departmentId, reporter?.id || null, reporter?.personnelNo || null, reporter?.email || null, description, body.foto_url || body.photoUrl || null]
       );
       await connection.execute(
         `INSERT INTO issue_status_history (issue_id, status, changed_at) VALUES (?, 'Açık', UTC_TIMESTAMP(3))`,

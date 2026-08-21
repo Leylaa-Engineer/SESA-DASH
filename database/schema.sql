@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS issues (
   department_id VARCHAR(64) NOT NULL,
   reporter_user_id BIGINT UNSIGNED NULL,
   reporter_personnel_no VARCHAR(50) NULL,
-  reporter_email VARCHAR(254) NOT NULL,
+  reporter_email VARCHAR(254) NULL,
   description TEXT NOT NULL,
   photo_url TEXT NULL,
   status ENUM('Açık', 'İşlemde', 'Çözüldü') NOT NULL DEFAULT 'Açık',

@@ -9,10 +9,10 @@ export default async function handler(req, res) {
     const password = String(body.password || '');
     const departmentId = String(body.bolum_id || body.departmentId || '').trim();
     const personnelNo = String(body.personnelNo || body.personnel_no || '').trim() || null;
-    const registrationCode = String(body.adminCode || '');
+    const registrationCode = String(body.adminCode || body.registrationCode || '').trim();
 
-    if (!fullName || !email || !password || !departmentId) {
-      const error = new Error('Ad soyad, e-posta, şifre ve bölüm zorunludur');
+    if (!fullName || !email || !password) {
+      const error = new Error('Ad soyad, e-posta ve şifre zorunludur');
       error.statusCode = 400;
       throw error;
     }
@@ -22,12 +22,35 @@ export default async function handler(req, res) {
       throw error;
     }
 
+    // Rol ve Yetki Kodu Mantığı
     const adminCode = process.env.ADMIN_SIGNUP_CODE;
     const responsibleCode = process.env.RESPONSIBLE_SIGNUP_CODE;
-    const role = departmentId === 'yonetici' || (adminCode && registrationCode === adminCode) ? 'admin' : 'sorumlu';
-    if ((role === 'admin' && (!adminCode || registrationCode !== adminCode)) || (role === 'sorumlu' && (!responsibleCode || registrationCode !== responsibleCode))) {
-      const error = new Error('Geçersiz kayıt kodu');
-      error.statusCode = 403;
+    let role = String(body.role || body.rol || 'operator').trim();
+
+    // Kayıt kodu gönderilmişse yetki kontrolü yap
+    if (registrationCode) {
+      if (adminCode && registrationCode === adminCode) {
+        role = 'admin';
+      } else if (responsibleCode && registrationCode === responsibleCode) {
+        role = 'sorumlu';
+      } else {
+        const error = new Error('Geçersiz kayıt kodu');
+        error.statusCode = 403;
+        throw error;
+      }
+    } else {
+      // Kod gönderilmediğinde varsayılan rol operator (düz kullanıcı)
+      role = 'operator';
+    }
+
+    if (!['admin', 'operator', 'sorumlu'].includes(role)) {
+      const error = new Error('Geçersiz kullanıcı rolü');
+      error.statusCode = 400;
+      throw error;
+    }
+    if (role !== 'admin' && !departmentId) {
+      const error = new Error('Bölüm seçimi zorunludur');
+      error.statusCode = 400;
       throw error;
     }
 
@@ -41,10 +64,12 @@ export default async function handler(req, res) {
          VALUES (?, ?, ?, ?, ?, TRUE)`,
         [personnelNo, fullName, email, passwordHash, role],
       );
-      await connection.execute(
-        'INSERT INTO user_departments (user_id, department_id) VALUES (?, ?)',
-        [result.insertId, departmentId],
-      );
+      if (role !== 'admin') {
+        await connection.execute(
+          'INSERT INTO user_departments (user_id, department_id) VALUES (?, ?)',
+          [result.insertId, departmentId],
+        );
+      }
       const [rows] = await connection.query('SELECT * FROM users WHERE id = ?', [result.insertId]);
       await connection.commit();
       const { password_hash: _passwordHash, ...safeUser } = rows[0];
@@ -56,6 +81,7 @@ export default async function handler(req, res) {
       connection.release();
     }
   } catch (error) {
+    console.error("Register API Hata Detayı:", error);
     return handleApiError(res, error);
   }
 }

@@ -1,338 +1,152 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, QrCode as QrIcon, Edit2, X, Check } from 'lucide-react';
-import { mysqlApi } from '../api/client';
+import { ArrowLeft, Plus, Trash2, QrCode as QrIcon, Edit2, X, Check, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import QRCode from 'qrcode';
 
 export default function MachineManager() {
   const { currentUser, userRole } = useAuth();
   const navigate = useNavigate();
+  
   const [machines, setMachines] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // Yönetici kontrolü (admin ise true döner)
-  const isAdmin = userRole === 'admin';
-
-  // Add Machine Form State
   const [showAddForm, setShowAddForm] = useState(false);
   const [newMachineName, setNewMachineName] = useState('');
+  const [selectedBolumId, setSelectedBolumId] = useState('1');
   const [adding, setAdding] = useState(false);
-
-  // Edit Machine State
   const [editingMachineId, setEditingMachineId] = useState(null);
   const [editMachineName, setEditMachineName] = useState('');
-
-  // Yönetici Filtreleme State'i
   const [selectedSorumlu, setSelectedSorumlu] = useState('ALL');
+
+  const isAdmin = userRole === 'admin';
+  const canAddMachine = isAdmin || userRole === 'sorumlu';
 
   useEffect(() => {
     fetchMachines();
-  }, [currentUser]);
+  }, []);
 
-  const fetchMachines = async () => {
-    if (!currentUser) return;
-
+  // Sunucudan gelen veriyi konsola basarak doğrulayan güncellenmiş fonksiyon
+ const fetchMachines = async () => {
     setLoading(true);
     try {
-      const machineList = await mysqlApi.machines();
-      const visibleMachines = isAdmin || !currentUser.bolum_idler?.length
-        ? machineList
-        : machineList.filter((machine) => currentUser.bolum_idler.includes(machine.bolum_id));
-      setMachines(visibleMachines);
+      const response = await fetch('api/index.php');
+      const data = await response.json();
+      
+      console.log("Gelen Veri:", data);
+
+      // Gelen veri doğrudan bir dizi ise direkt al
+      if (Array.isArray(data)) {
+        setMachines(data);
+      } 
+      // Eğer bir nesne içindeyse ve içinde 'machines' anahtarı varsa onu al
+      else if (data && typeof data === 'object') {
+        if (Array.isArray(data.machines)) {
+          setMachines(data.machines);
+        } else {
+          // Eğer nesne başka bir yapıda ise diziye çevir
+          setMachines(Object.values(data));
+        }
+      } else {
+        setMachines([]);
+      }
     } catch (err) {
-      console.error("Makineler getirilirken hata:", err);
+      console.error("Makine yükleme hatası:", err);
+      setMachines([]);
     } finally {
       setLoading(false);
     }
   };
-
-  const generateMachineCode = () => {
-    const prefix = "MKN";
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    return `${prefix}-${randomNum}`;
-  };
-
   const handleAddMachine = async (e) => {
     e.preventDefault();
-    if (isAdmin) return; // Yöneticiler ekleyemez
-    if (!newMachineName.trim()) return;
-
     setAdding(true);
-    try {
-      const bolumId = currentUser.bolum_idler[0];
-      const newCode = generateMachineCode();
-      await mysqlApi.createMachine({ kod: newCode, ad: newMachineName, bolum_id: bolumId });
-      setNewMachineName('');
-      setShowAddForm(false);
-      fetchMachines();
-    } catch (err) {
-      console.error("Makine eklenirken hata:", err);
-      alert('Makine eklenemedi!');
-    } finally {
-      setAdding(false);
-    }
-  };
+    const newMachine = { 
+      id: Date.now().toString(), 
+      ad: newMachineName, 
+      kod: "MKN-" + Math.floor(Math.random()*9000), 
+      bolum_id: selectedBolumId, 
+      ekleyen_email: currentUser?.email 
+    };
 
-  const handleDeleteMachine = async (machineId) => {
-    if (isAdmin) return; // Yöneticiler silemez
-    if (window.confirm("Bu makineyi silmek istediğinize emin misiniz? Arıza kayıtları yetim kalabilir.")) {
-      try {
-        await mysqlApi.deleteMachine(machineId);
-        fetchMachines();
-      } catch (err) {
-        console.error("Makine silinirken hata:", err);
-        alert('Makine silinemedi!');
-      }
-    }
-  };
-
-  const handleEditClick = (machine) => {
-    if (isAdmin) return; // Yöneticiler düzenleyemez
-    setEditingMachineId(machine.id);
-    setEditMachineName(machine.ad);
-  };
-
-  const handleSaveEdit = async (machineId) => {
-    if (isAdmin) return;
-    if (!editMachineName.trim()) return;
+    setMachines(prev => [...prev, newMachine]);
 
     try {
-      await mysqlApi.updateMachine(machineId, { ad: editMachineName });
-      setMachines(machines.map(m => m.id === machineId ? { ...m, ad: editMachineName } : m));
-      setEditingMachineId(null);
+      await fetch('api/index.php', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({ action: 'add_machine', ...newMachine }) 
+      });
     } catch (err) {
-      console.error("Makine güncellenirken hata:", err);
-      alert('Makine güncellenemedi!');
+      console.error("Ekleme hatası:", err);
     }
+
+    setNewMachineName(''); 
+    setShowAddForm(false); 
+    setAdding(false);
   };
 
-  const downloadQR = async (code, name) => {
+  const handleDelete = async (id) => {
+    if(!window.confirm("Silinsin mi?")) return;
+    setMachines(prev => prev.filter(m => m.id !== id));
+    
     try {
-      const qrUrl = `${window.location.origin}/machine/${code}`;
-      const qrDataUrl = await QRCode.toDataURL(qrUrl, { width: 400, margin: 2 });
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height + 60;
-        
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.drawImage(img, 0, 0);
-        ctx.fillStyle = '#000000';
-        ctx.font = 'bold 32px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        ctx.fillText(code, canvas.width / 2, img.height + 30);
-        
-        const link = document.createElement('a');
-        link.download = `QR_${name}_${code}.png`;
-        link.href = canvas.toDataURL('image/png');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      };
-      
-      img.src = qrDataUrl;
+      await fetch('api/index.php', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action: 'delete_machine', id }) 
+      });
     } catch (err) {
-      console.error("QR üretilirken hata:", err);
-      alert('QR Kod üretilemedi.');
+      console.error("Silme hatası:", err);
     }
   };
 
-  // Benzersiz sorumluların e-posta listesi (Yöneticiler için filtre menüsü için)
-  const uniqueSorumlular = [...new Set(machines.map(m => m.ekleyen_email).filter(Boolean))];
+  const downloadQR = async (m) => {
+    const dataUrl = await QRCode.toDataURL(`${window.location.origin}/machine/${m.kod}`);
+    const link = document.createElement('a');
+    link.download = `QR_${m.ad}.png`;
+    link.href = dataUrl;
+    link.click();
+  };
 
-  // Filtreleme Mantığı:
-  // - Eğer kullanıcı yönetici (isAdmin) ise: Seçtiği sorumluyu baz alır (ALL ise hepsini gösterir).
-  // - Eğer kullanıcı sorumlu ise: Sadece kendi e-postasına ait makineleri gösterir.
-  const filteredMachines = machines.filter(machine => {
-    if (isAdmin) {
-      if (selectedSorumlu === 'ALL') return true;
-      return machine.ekleyen_email === selectedSorumlu;
-    } else {
-      return machine.ekleyen_email === currentUser?.email;
-    }
-  });
+  const filteredMachines = machines; 
+  
+    
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      
-      <div className="flex items-center mb-3">
-        <button 
-          onClick={() => navigate('/dashboard')} 
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text)', marginRight: '1rem' }}
-        >
-          <ArrowLeft size={24} />
+    <div className="p-4">
+      <div className="flex items-center mb-6">
+        <button onClick={() => navigate('/dashboard')}><ArrowLeft size={24} /></button>
+        <h2 className="ml-4 text-xl font-bold">Makine Yönetimi</h2>
+      </div>
+
+      {canAddMachine && (
+        <button onClick={() => setShowAddForm(!showAddForm)} className="w-full btn-primary mb-4 py-2">
+          {showAddForm ? 'İptal' : 'Yeni Makine Ekle'}
         </button>
-        <h2 style={{ fontSize: '1.4rem', margin: 0 }}>Makine Yönetimi</h2>
-      </div>
+      )}
 
-      {/* Sadece yönetici olmayanlar (sorumlular) makine ekleme butonunu görebilir */}
-      {!isAdmin && (
-        <>
-          {!showAddForm ? (
-            <button 
-              className="btn btn-primary mb-3" 
-              style={{ width: '100%' }}
-              onClick={() => setShowAddForm(true)}
-            >
-              <Plus size={20} /> Yeni Makine Ekle
-            </button>
-          ) : (
-            <div className="card" style={{ border: '2px solid var(--color-primary)' }}>
-              <h3 className="mb-2">Yeni Makine Ekle</h3>
-              <form onSubmit={handleAddMachine}>
-                <div className="input-group">
-                  <label className="input-label">Makine Adı / Modeli</label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    value={newMachineName}
-                    onChange={(e) => setNewMachineName(e.target.value)}
-                    placeholder="Örn: Laminasyon 1"
-                    required
-                    autoFocus
-                  />
-                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
-                    Makine kodu sistem tarafından otomatik üretilecektir.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowAddForm(false)}>Vazgeç</button>
-                  <button type="submit" className="btn btn-primary" style={{ flex: 1, cursor: adding ? 'not-allowed' : 'pointer' }} disabled={adding}>
-                    {adding ? 'Ekleniyor...' : 'Kaydet'}
-                  </button>
-                </div>
-              </form>
+      {showAddForm && (
+        <form onSubmit={handleAddMachine} className="card p-4 mb-4">
+          <input className="w-full mb-2 p-2 border" placeholder="Makine Adı" value={newMachineName} onChange={(e) => setNewMachineName(e.target.value)} required />
+          <button className="w-full btn-primary" disabled={adding}>{adding ? 'Ekleniyor...' : 'Kaydet'}</button>
+        </form>
+      )}
+
+      {loading ? <Loader2 className="animate-spin mx-auto" /> : filteredMachines.length === 0 ? (
+        <div className="text-center p-4 text-gray-500">Henüz kayıtlı makine bulunmuyor.</div>
+      ) : (
+        filteredMachines.map(m => (
+          <div key={m.id || m.kod} className="card p-4 mb-2 flex justify-between items-center">
+            <div>
+              <h3 className="font-bold">{m.ad}</h3>
+              <p className="text-xs text-gray-500">{m.kod}</p>
             </div>
-          )}
-        </>
-      )}
-
-      {/* YÖNETİCİLER İÇİN SORUMLU FİLTRELEME ALANI */}
-      {isAdmin && (
-        <div className="card mb-3" style={{ padding: '0.8rem 1rem' }}>
-          <label className="input-label" style={{ fontSize: '0.85rem', marginBottom: '0.3rem', display: 'block' }}>
-            Sorumluya Göre Filtrele
-          </label>
-          <select 
-            className="input-field"
-            value={selectedSorumlu}
-            onChange={(e) => setSelectedSorumlu(e.target.value)}
-            style={{ width: '100%', padding: '0.5rem' }}
-          >
-            <option value="ALL">Tüm Sorumlular (Tüm Makineler)</option>
-            {uniqueSorumlular.map((email, index) => (
-              <option key={index} value={email}>
-                {email}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      <div>
-        <h3 className="mb-2" style={{ color: 'var(--color-text-muted)', fontSize: '1rem' }}>
-          {isAdmin ? 'Bölümdeki Makineler (Filtrelenmiş)' : 'Sizin Eklediğiniz Makineler'}
-        </h3>
-        
-        {loading ? (
-          <div className="text-center">Makineler yükleniyor...</div>
-        ) : filteredMachines.length === 0 ? (
-          <div className="card text-center text-muted">
-            {isAdmin && selectedSorumlu !== 'ALL' 
-              ? 'Bu sorumlunun eklediği makine bulunamadı.' 
-              : !isAdmin 
-              ? 'Henüz size ait eklenmiş bir makine yok.' 
-              : 'Henüz bu bölüme ait makine eklenmemiş.'}
+            <div className="flex gap-2">
+              <button onClick={() => downloadQR(m)} className="text-blue-500 p-1" title="QR İndir"><QrIcon size={20} /></button>
+              <button onClick={() => handleDelete(m.id)} className="text-red-500 p-1" title="Sil"><Trash2 size={20} /></button>
+            </div>
           </div>
-        ) : (
-          filteredMachines.map(machine => (
-            <div key={machine.id} className="card flex justify-between items-center" style={{ padding: '1rem' }}>
-              <div style={{ flex: 1 }}>
-                {editingMachineId === machine.id && !isAdmin ? (
-                  <div className="flex items-center gap-2 mb-2">
-                    <input 
-                      type="text" 
-                      value={editMachineName} 
-                      onChange={(e) => setEditMachineName(e.target.value)}
-                      className="input-field"
-                      style={{ padding: '0.3rem', fontSize: '1rem' }}
-                      autoFocus
-                    />
-                  </div>
-                ) : (
-                  <h4 style={{ fontSize: '1.1rem', marginBottom: '0.2rem' }}>{machine.ad}</h4>
-                )}
-                
-                <div className="flex items-center gap-2" style={{ marginTop: '0.3rem', flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', fontFamily: 'monospace', background: '#eee', display: 'inline-block', padding: '0.1rem 0.5rem', borderRadius: '4px' }}>
-                    {machine.kod}
-                  </div>
-                  
-                  {/* Ekleyen kişinin mail adresi */}
-                  {machine.ekleyen_email && (
-                    <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                      Ekleyen: <span style={{ fontWeight: '500' }}>{machine.ekleyen_email}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-2" style={{ marginLeft: '1rem' }}>
-                {editingMachineId === machine.id && !isAdmin ? (
-                  <>
-                    <button onClick={() => handleSaveEdit(machine.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-status-resolved)', padding: '0.5rem' }}>
-                      <Check size={20} />
-                    </button>
-                    <button onClick={() => setEditingMachineId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', padding: '0.5rem' }}>
-                      <X size={20} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    {/* QR İndirme butonu hem yönetici hem sorumlularda görünür */}
-                    <button 
-                      onClick={() => downloadQR(machine.kod, machine.ad)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', padding: '0.5rem' }}
-                      title="QR Kodu İndir"
-                    >
-                      <QrIcon size={20} />
-                    </button>
-   
-                    {/* Düzenleme ve Silme butonları SADECE yönetici olmayanlar (sorumlular) için görünür */}
-                    {!isAdmin && (
-                      <>
-                        <button 
-                          onClick={() => handleEditClick(machine)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text)', padding: '0.5rem' }}
-                          title="Makineyi Düzenle"
-                        >
-                          <Edit2 size={20} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteMachine(machine.id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-status-open)', padding: '0.5rem' }}
-                          title="Makineyi Sil"
-                        >
-                          <Trash2 size={20} />
-                        </button>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
+        ))
+      )}
     </div>
   );
 }

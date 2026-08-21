@@ -11,22 +11,47 @@ const statusConfig = {
 };
 
 export default function IssueDetail() {
-  const { id } = useParams();
+  const params = useParams();
+  // Route tanımında :id veya :issueId kullanılma ihtimaline karşı her ikisini de kontrol ediyoruz
+  const id = params.id || params.issueId || Object.values(params)[0];
+  
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [issue, setIssue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [canDelete, setCanDelete] = useState(false);
+  const [errorDetails, setErrorDetails] = useState('');
 
   useEffect(() => {
     const load = async () => {
       if (!currentUser) return;
+
+      // ID parametresi boş veya 'undefined' string ise isteği hiç atmıyoruz
+      if (!id || id === 'undefined') {
+        setLoading(false);
+        setErrorDetails(`URL'den geçerli bir ID alınamadı (Gelen parametre: "${id}")`);
+        return;
+      }
+
       try {
-        const data = await mysqlApi.issue(id);
-        setIssue({ ...data, id });
-        setCanDelete(true);
-      } catch (error) { console.error('Arıza getirilirken hata:', error); } finally { setLoading(false); }
+        const response = await mysqlApi.issue(id);
+        const data = Array.isArray(response) ? response[0] : response;
+        
+        if (data && (data.id || data.makine_ad || data.aciklama)) {
+          setIssue({ ...data, id: data.id || id });
+          setCanDelete(true);
+        } else {
+          setIssue(null);
+          setErrorDetails('API geçerli bir arıza nesnesi dönmedi.');
+        }
+      } catch (error) {
+        console.error('Arıza getirilirken hata:', error);
+        setIssue(null);
+        setErrorDetails(error.message || 'Sunucudan veri alınamadı.');
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, [id, currentUser, navigate]);
@@ -42,12 +67,20 @@ export default function IssueDetail() {
     try {
       await mysqlApi.updateIssue(id, { durum: newStatus });
       const refreshed = await mysqlApi.issue(id);
-      setIssue({ ...refreshed, id });
+      const data = Array.isArray(refreshed) ? refreshed[0] : refreshed;
+      setIssue({ ...data, id: data?.id || id });
     } catch (error) { console.error('Durum güncellenirken hata:', error); alert('Durum güncellenemedi.'); } finally { setUpdating(false); }
   };
 
   if (loading) return <div className="empty-state">Arıza kaydı yükleniyor…</div>;
-  if (!issue) return <div className="empty-state">Arıza kaydı bulunamadı veya kaldırılmış.</div>;
+  if (!issue) {
+    return (
+      <div className="empty-state">
+        <p>Arıza kaydı bulunamadı veya kaldırılmış.</p>
+        {errorDetails && <p style={{ color: '#ef4444', marginTop: '10px', fontSize: '14px' }}><strong>Hata Detayı:</strong> {errorDetails}</p>}
+      </div>
+    );
+  }
 
   const current = statusConfig[issue.durum] || statusConfig.Açık;
   const CurrentIcon = current.icon;

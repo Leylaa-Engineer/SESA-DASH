@@ -7,6 +7,7 @@ function mapMachine(row) {
     ad: row.name,
     bolum_id: row.departmentId,
     bolum_ad: row.departmentName,
+    sorumlu_email: row.responsibleEmail,
     qr_kodu: row.qrCodeValue,
     canias_varlik_no: row.caniasAssetNo,
     ekleyen_kullanici_id: row.addedByUserId,
@@ -22,8 +23,10 @@ export default async function handler(req, res) {
       const [rows] = await getDb().query(
         `SELECT m.id, m.code, m.name, m.department_id AS departmentId, d.name AS departmentName,
                 m.qr_code_value AS qrCodeValue, m.canias_asset_no AS caniasAssetNo,
-                m.added_by_user_id AS addedByUserId, m.is_active AS isActive, m.created_at AS createdAt
-           FROM machines m JOIN departments d ON d.id = m.department_id
+                 m.added_by_user_id AS addedByUserId, u.email AS responsibleEmail,
+                 m.is_active AS isActive, m.created_at AS createdAt
+               FROM machines m JOIN departments d ON d.id = m.department_id
+               LEFT JOIN users u ON u.id = m.added_by_user_id AND u.is_active = TRUE
           WHERE m.is_active = TRUE ${code ? 'AND m.code = ?' : ''}
           ORDER BY m.name`,
         code ? [code] : []
@@ -46,8 +49,11 @@ export default async function handler(req, res) {
     const [rows] = await db.query(
       `SELECT m.id, m.code, m.name, m.department_id AS departmentId, d.name AS departmentName,
               m.qr_code_value AS qrCodeValue, m.canias_asset_no AS caniasAssetNo,
-              m.added_by_user_id AS addedByUserId, m.is_active AS isActive, m.created_at AS createdAt
-         FROM machines m JOIN departments d ON d.id = m.department_id WHERE m.id = ?`,
+                  m.added_by_user_id AS addedByUserId, u.email AS responsibleEmail,
+                  m.is_active AS isActive, m.created_at AS createdAt
+                FROM machines m JOIN departments d ON d.id = m.department_id
+                LEFT JOIN users u ON u.id = m.added_by_user_id AND u.is_active = TRUE
+               WHERE m.id = ?`,
       [result.insertId]
     );
     return sendJson(res, 201, mapMachine(rows[0]));

@@ -1,0 +1,44 @@
+// Makine Listeleme ve Ekleme Kesin Çözüm Bloğu
+if (strpos($_SERVER['REQUEST_URI'], 'machines') !== false || $action === 'get_machines' || $action === 'create_machine' || $_SERVER['REQUEST_METHOD'] === 'GET' || $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $jsonFile = __DIR__ . '/machines_data.json';
+    
+    // Dosya yoksa veya boşsa örnek veriyle oluştur
+    if (!file_exists($jsonFile) || filesize($jsonFile) == 0) {
+        $defaultData = [
+            [
+                "id" => time(),
+                "ad" => "Varsayılan Makine",
+                "kod" => "MKN-9999",
+                "bolum_id" => "1",
+                "ekleyen_email" => ""
+            ]
+        ];
+        file_put_contents($jsonFile, json_encode($defaultData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    }
+
+    // POST isteği (Yeni makine ekleme)
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($input['ad'])) {
+        $machines = json_decode(file_get_contents($jsonFile), true) ?: [];
+        
+        $newMachine = [
+            "id" => time(),
+            "ad" => $input['ad'],
+            "kod" => $input['kod'] ?? ("MKN-" . rand(1000, 9999)),
+            "bolum_id" => $input['bolum_id'] ?? "1",
+            "ekleyen_email" => $input['ekleyen_email'] ?? $input['email'] ?? ''
+        ];
+        
+        $machines[] = $newMachine;
+        file_put_contents($jsonFile, json_encode($machines, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        
+        header('Content-Type: application/json');
+        echo json_encode(["success" => true, "machine" => $newMachine]);
+        exit();
+    }
+
+    // GET isteği (Listeleme)
+    $machinesData = file_get_contents($jsonFile);
+    header('Content-Type: application/json');
+    echo $machinesData;
+    exit();
+}
